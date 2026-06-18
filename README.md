@@ -6,30 +6,38 @@ iCode is a project-centric desktop workspace for Codex, Claude Code, and OpenCod
 
 ## Development
 
+This project uses [bun](https://bun.sh) for package management and scripts, organized as a monorepo.
+
 ```bash
-npm install
-npm run dev
+bun install
+bun run dev
 ```
 
 Useful checks:
 
 ```bash
-npm run typecheck
-npm run lint
-npm run package
+bun run typecheck   # type-check all workspace packages
+bun run lint        # eslint across the repo
+bun run package     # build & package the desktop app
+bun run build:shared # emit @icode/shared dist artifacts
 ```
 
-## Architecture
+## Repository layout
 
 ```text
-src/
-├── main/       Electron lifecycle, IPC, and local services
-├── preload/    Context-isolated renderer bridge
-├── renderer/   React project workspace
-└── shared/     Domain models and IPC contracts
+packages/
+├── shared/    @icode/shared  — domain models and IPC contracts (types + IPC_CHANNELS)
+├── main/      @icode/main    — Electron lifecycle, IPC handlers, local services
+├── preload/   @icode/preload — context-isolated renderer bridge
+└── renderer/  @icode/renderer — React project workspace
 ```
 
-The initial renderer uses representative project data so the product layout and domain boundaries can evolve independently from persistence and agent execution.
+`@icode/shared` is a dependency-free leaf package depended on by every other package.
+The three process packages (`main`, `preload`, `renderer`) are not built independently — they are orchestrated by Electron Forge from the repository root, where `forge.config.ts` and the `vite.*.config.ts` files live.
+
+### Path resolution
+
+Cross-package imports use the `@icode/shared` package name. Each Vite config maps this name to the shared source so it resolves correctly in both dev and packaged builds without relying on `node_modules` symlinks.
 
 ## Next Milestones
 
