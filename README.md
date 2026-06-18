@@ -25,15 +25,18 @@ bun run build:shared # emit @icode/shared dist artifacts
 ## Repository layout
 
 ```text
+apps/
+└── desktop/   @icode/desktop — Electron app (main, preload, and React renderer)
 packages/
-├── shared/    @icode/shared  — domain models and IPC contracts (types + IPC_CHANNELS)
-├── main/      @icode/main    — Electron lifecycle, IPC handlers, local services
-├── preload/   @icode/preload — context-isolated renderer bridge
-└── renderer/  @icode/renderer — React project workspace
+└── shared/    @icode/shared  — domain models and IPC contracts (types + IPC_CHANNELS)
 ```
 
-`@icode/shared` is a dependency-free leaf package depended on by every other package.
-The three process packages (`main`, `preload`, `renderer`) are not built independently — they are orchestrated by Electron Forge from the repository root, where `forge.config.ts` and the `vite.*.config.ts` files live.
+`@icode/desktop` owns the complete deployable application, including its Electron
+Forge and Vite configuration. Its `main`, `preload`, and `renderer` directories are
+process boundaries within one app, not independently versioned packages.
+
+`@icode/shared` is a dependency-free leaf package for contracts that can be reused
+by desktop and future applications.
 
 ### Path resolution
 

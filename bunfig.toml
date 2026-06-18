@@ -1,6 +1,6 @@
 [install]
-# Use hardlinks for workspace deps (faster, less disk).
-linker = "hardlinks"
+# Keep workspace dependencies visible to Electron Forge during packaging.
+linker = "hoisted"
 
 [test]
 # Placeholder; per-package tests can override.

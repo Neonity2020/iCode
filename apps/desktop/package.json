@@ -1,0 +1,42 @@
+{
+  "name": "@icode/desktop",
+  "productName": "iCode",
+  "version": "0.1.0",
+  "description": "One Project. Multiple Coding Agents.",
+  "main": ".vite/build/main.js",
+  "private": true,
+  "scripts": {
+    "dev": "electron-forge start",
+    "package": "electron-forge package",
+    "make": "electron-forge make",
+    "typecheck": "bun run typecheck:main && bun run typecheck:preload && bun run typecheck:renderer",
+    "typecheck:main": "tsc -p tsconfig.main.json --noEmit",
+    "typecheck:preload": "tsc -p tsconfig.preload.json --noEmit",
+    "typecheck:renderer": "tsc -p tsconfig.renderer.json --noEmit"
+  },
+  "dependencies": {
+    "@icode/shared": "workspace:*",
+    "electron-squirrel-startup": "1.0.1",
+    "lucide-react": "1.20.0",
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
+    "react-markdown": "10.1.0",
+    "zustand": "5.0.14"
+  },
+  "devDependencies": {
+    "@electron-forge/cli": "7.11.2",
+    "@electron-forge/maker-deb": "7.11.2",
+    "@electron-forge/maker-dmg": "7.11.2",
+    "@electron-forge/maker-rpm": "7.11.2",
+    "@electron-forge/maker-squirrel": "7.11.2",
+    "@electron-forge/maker-zip": "7.11.2",
+    "@electron-forge/plugin-vite": "7.11.2",
+    "@types/node": "25.9.3",
+    "@types/react": "19.2.17",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "4.7.0",
+    "electron": "31.7.7",
+    "typescript": "5.9.3",
+    "vite": "5.4.21"
+  }
+}
