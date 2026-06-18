@@ -1,0 +1,6 @@
+[install]
+# Use hardlinks for workspace deps (faster, less disk).
+linker = "hardlinks"
+
+[test]
+# Placeholder; per-package tests can override.
