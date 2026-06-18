@@ -64,6 +64,7 @@ export class SessionService {
     rawPrompt: string,
     sessionId?: string,
     forceNewSession = false,
+    model?: string,
   ): Promise<{ session: ProjectSession; run: AgentRun; providerThreadId?: string }> {
     const operation = this.writeQueue.then(async () => {
       const projectRoot = await this.workspaceService.resolveProjectRoot(projectId)
@@ -100,6 +101,7 @@ export class SessionService {
         agent: 'codex',
         status: 'running',
         startedAt: now,
+        model,
         entries: [{ id: randomUUID(), runId, kind: 'prompt', content: prompt, createdAt: now }],
       }
 

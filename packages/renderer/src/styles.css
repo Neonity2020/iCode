@@ -92,6 +92,11 @@ button { color: inherit; }
 .composer { flex: 0 0 auto; margin: 0 clamp(16px, 3vw, 40px) 22px; border: 1px solid #34363d; border-radius: 10px; background: #191a1f; box-shadow: 0 12px 38px rgba(0,0,0,.35); }
 .composer-meta { height: 29px; display: flex; align-items: center; gap: 7px; padding: 0 12px; border-bottom: 1px solid #292b31; color: #a2a4ab; font-size: 9px; }
 .composer-meta span:last-child { margin-left: auto; color: #696c74; }
+.composer-meta select.model-picker { margin-left: auto; background: #202127; color: #c2c4ca; border: 1px solid #34363d; border-radius: 5px; font-size: 9px; padding: 3px 6px; cursor: pointer; font-family: inherit; }
+.composer-meta select.model-picker:disabled { opacity: .4; cursor: default; }
+.composer-meta select.model-picker.loading { font-style: italic; color: #8e9097; }
+.composer-meta .model-picker-spinner { margin-left: -4px; color: #8e9097; animation: model-picker-spin 0.8s linear infinite; }
+@keyframes model-picker-spin { to { transform: rotate(360deg); } }
 .composer-error { padding: 7px 12px; border-bottom: 1px solid #4b292d; color: #e5a3a6; background: #25191b; font-size: 10px; }
 .agent-dot { width: 6px; height: 6px; border-radius: 50%; background: #888; }
 .agent-dot.codex { background: #b8f531; }.agent-dot.claude { background: #ef9c6c; }.agent-dot.opencode { background: #73b9ff; }

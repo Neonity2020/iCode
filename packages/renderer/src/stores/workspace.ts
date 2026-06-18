@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { AgentRun, AgentType, CodexApprovalDecision, CodexApprovalRequest, CodexRunEvent, Project, ProjectSession } from '@icode/shared'
+import type { AgentRun, AgentType, CodexApprovalDecision, CodexApprovalRequest, CodexModelInfo, CodexRunEvent, Project, ProjectSession } from '@icode/shared'
 
 type RightPanelTab = 'files' | 'git' | 'terminal'
 
@@ -30,6 +30,12 @@ interface WorkspaceState {
   sessionError: string | null
   runError: string | null
   selectedAgent: AgentType
+  /** Codex model id the user has picked for the next run (matches `CodexModelInfo.id`). */
+  selectedModel: string
+  /** Model catalog pulled from Codex's `model/list` — filtered to hide `hidden` entries. */
+  availableModels: CodexModelInfo[]
+  isLoadingModels: boolean
+  modelError: string | null
   rightPanelTab: RightPanelTab
   /** Mid-turn permission request surfaced from Codex, or null when none is pending. */
   pendingApproval: CodexApprovalRequest | null
@@ -38,7 +44,9 @@ interface WorkspaceState {
   loadSessions: (projectId: string) => Promise<void>
   createSession: (title: string) => Promise<ProjectSession>
   loadRuns: (sessionId: string) => Promise<void>
-  startCodexRun: (prompt: string) => Promise<void>
+  /** Fetches the Codex model catalog and primes `availableModels`. */
+  loadAvailableModels: () => Promise<void>
+  startCodexRun: (prompt: string, options?: { model?: string }) => Promise<void>
   interruptRun: (runId: string) => Promise<void>
   applyCodexEvent: (event: CodexRunEvent) => void
   /** Records an approval request pushed from the main process. */
@@ -49,6 +57,7 @@ interface WorkspaceState {
   setProject: (projectId: string) => void
   setSession: (sessionId: string) => void
   setAgent: (agent: AgentType) => void
+  setModel: (model: string) => void
   setRightPanelTab: (tab: RightPanelTab) => void
 }
 
@@ -67,6 +76,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   sessionError: null,
   runError: null,
   selectedAgent: 'codex',
+  selectedModel: 'gpt-5.4-mini',
+  availableModels: [],
+  isLoadingModels: false,
+  modelError: null,
   rightPanelTab: 'files',
   pendingApproval: null,
   loadProjects: async () => {
@@ -145,7 +158,29 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       if (get().sessionId === sessionId) set({ runs: [], isLoadingRuns: false, runError: error instanceof Error ? error.message : 'Unable to load agent runs.' })
     }
   },
-  startCodexRun: async (prompt) => {
+  loadAvailableModels: async () => {
+    if (get().isLoadingModels) return
+    set({ isLoadingModels: true, modelError: null })
+    try {
+      const response = await window.icode.codex.listModels()
+      const visible = response.data.filter((model) => !model.hidden)
+      const currentSelectionStillValid = visible.some((model) => model.id === get().selectedModel)
+      const fallback = visible.find((model) => model.isDefault) ?? visible[0]
+      set((state) => ({
+        availableModels: visible,
+        isLoadingModels: false,
+        // Keep the user's pick if it still exists; otherwise fall back to Codex's default, then the first entry.
+        selectedModel: currentSelectionStillValid ? state.selectedModel : (fallback?.id ?? state.selectedModel),
+        modelError: visible.length === 0 ? 'Codex did not return any selectable models.' : null,
+      }))
+    } catch (error) {
+      set({
+        isLoadingModels: false,
+        modelError: error instanceof Error ? error.message : 'Unable to load Codex models.',
+      })
+    }
+  },
+  startCodexRun: async (prompt, options) => {
     const projectId = get().projectId
     if (!projectId) throw new Error('Select a project before starting Codex.')
     invalidateSessionLoads()
@@ -153,11 +188,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     try {
       const state = get()
       const currentSessionId = state.sessionId || state.runs.at(-1)?.sessionId
+      const model = options?.model ?? state.selectedModel
       const { session, run } = await window.icode.codex.start({
         projectId,
         prompt,
         sessionId: currentSessionId,
         forceNewSession: state.forceNewSession,
+        model,
       })
       if (get().projectId !== projectId) {
         pendingCodexEvents.delete(run.id)
@@ -228,6 +265,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     }
   },
   setProject: (projectId) => {
+    // Clicking the already-active project should be inert — clearing here would
+    // wipe sessions/runs with no state change to retrigger the load effects.
+    if (get().projectId === projectId) return
     invalidateSessionLoads()
     set({
       projectId,
@@ -241,7 +281,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       runError: null,
     })
   },
-  setSession: (sessionId) => set({ sessionId, runs: [], forceNewSession: false, runError: null }),
+  setSession: (sessionId) => {
+    // Same guard as setProject: re-clicking the active session must not clear runs.
+    if (get().sessionId === sessionId) return
+    set({ sessionId, runs: [], forceNewSession: false, runError: null })
+  },
   setAgent: (selectedAgent) => set({ selectedAgent }),
+  setModel: (selectedModel) => set({ selectedModel }),
   setRightPanelTab: (rightPanelTab) => set({ rightPanelTab }),
 }))

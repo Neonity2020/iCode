@@ -1,5 +1,6 @@
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { createInterface } from 'node:readline'
+import type { CodexModelInfo, CodexModelListResponse } from '@icode/shared'
 
 type RunCompletionStatus = 'completed' | 'failed' | 'stopped'
 
@@ -50,6 +51,8 @@ export class CodexAppServerService {
   private readonly runsByThread = new Map<string, ActiveRun>()
   private readonly runsById = new Map<string, ActiveRun>()
   private stderr = ''
+  private modelListCache: CodexModelListResponse | null = null
+  private modelListPromise: Promise<CodexModelListResponse> | null = null
 
   /**
    * Sandbox mode applied to every thread. Defaults to `workspace-write` so Codex can edit the
@@ -73,9 +76,10 @@ export class CodexAppServerService {
     onDelta: ActiveRun['onDelta'],
     onCompleted: ActiveRun['onCompleted'],
     existingThreadId?: string,
+    model?: string,
   ): Promise<{ threadId: string; turnId: string }> {
     await this.ensureInitialized()
-    const threadResult = await this.request<{ thread: { id: string } }>(existingThreadId ? 'thread/resume' : 'thread/start', {
+    const threadParams: Record<string, unknown> = {
       ...(existingThreadId ? { threadId: existingThreadId } : {}),
       cwd,
       // `workspace-write` lets Codex edit files inside `cwd` while isolating the rest of the file system.
@@ -84,7 +88,11 @@ export class CodexAppServerService {
       // `on-request` makes Codex ask for approval when it wants to take an action that needs permission;
       // once the user picks "accept-for-session", Codex remembers the grant for the rest of the thread.
       approvalPolicy: 'on-request',
-    })
+    }
+    // Model is only honored when starting a fresh thread — a resumed thread keeps the model it was created with.
+    if (!existingThreadId && model) threadParams.model = model
+    const method = existingThreadId ? 'thread/resume' : 'thread/start'
+    const threadResult = await this.request<{ thread: { id: string } }>(method, threadParams)
     const threadId = threadResult.thread.id
     const activeRun: ActiveRun = { runId, threadId, turnId: null, response: '', onDelta, onCompleted }
     this.runsByThread.set(threadId, activeRun)
@@ -107,6 +115,45 @@ export class CodexAppServerService {
     const run = this.runsById.get(runId)
     if (!run?.turnId) throw new Error('This Codex run is not active.')
     await this.request('turn/interrupt', { threadId: run.threadId, turnId: run.turnId })
+  }
+
+  /**
+   * Asks Codex for its current model catalog. The first call boots the app-server
+   * (same path as starting a run) and the result is cached in-process so subsequent
+   * calls return immediately. The cache is cleared when the app-server exits.
+   */
+  async listModels(): Promise<CodexModelListResponse> {
+    if (this.modelListCache) return this.modelListCache
+    if (this.modelListPromise) return this.modelListPromise
+    this.modelListPromise = (async () => {
+      await this.ensureInitialized()
+      const raw = await this.request<{
+        data?: Array<Partial<CodexModelInfo> & Record<string, unknown>>
+        nextCursor?: string | null
+      }>('model/list', {})
+      const data = (raw.data ?? []).flatMap((entry) => this.normalizeModelEntry(entry))
+      const response: CodexModelListResponse = { data, nextCursor: raw.nextCursor ?? null }
+      this.modelListCache = response
+      return response
+    })().finally(() => {
+      this.modelListPromise = null
+    })
+    return this.modelListPromise
+  }
+
+  /** Codex sends more fields than we surface; pull just the ones the picker needs and skip rows we can't use. */
+  private normalizeModelEntry(entry: Partial<CodexModelInfo> & Record<string, unknown>): CodexModelInfo[] {
+    const id = typeof entry.id === 'string' ? entry.id : typeof entry.model === 'string' ? entry.model : null
+    const displayName = typeof entry.displayName === 'string' && entry.displayName
+      ? entry.displayName
+      : id
+    if (!id || !displayName) return []
+    return [{
+      id,
+      displayName,
+      isDefault: entry.isDefault === true,
+      hidden: entry.hidden === true,
+    }]
   }
 
   dispose(): void {
@@ -287,6 +334,8 @@ export class CodexAppServerService {
     if (!this.process) return
     this.process = null
     this.initializePromise = null
+    this.modelListCache = null
+    this.modelListPromise = null
     for (const pending of this.pending.values()) {
       clearTimeout(pending.timer)
       pending.reject(error)

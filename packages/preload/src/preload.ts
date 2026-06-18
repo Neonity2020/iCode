@@ -24,8 +24,10 @@ const api: ICodeApi = {
       input.prompt,
       input.sessionId,
       input.forceNewSession,
+      input.model,
     ),
     interrupt: (runId) => ipcRenderer.invoke(IPC_CHANNELS.codexRunInterrupt, runId),
+    listModels: () => ipcRenderer.invoke(IPC_CHANNELS.codexModelsList),
     onEvent: (listener) => {
       const handler = (_event: Electron.IpcRendererEvent, runEvent: Parameters<typeof listener>[0]) => listener(runEvent)
       ipcRenderer.on(IPC_CHANNELS.codexRunEvent, handler)

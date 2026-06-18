@@ -1,6 +1,24 @@
 export type AgentType = 'codex' | 'claude' | 'opencode'
 export type AgentRunStatus = 'idle' | 'running' | 'completed' | 'failed' | 'stopped'
 
+/** Subset of Codex's `model/list` entry — the fields we actually use in the UI. */
+export interface CodexModelInfo {
+  /** Value sent to `thread/start`'s `model` parameter. */
+  id: string
+  /** Human-readable name shown in the picker. */
+  displayName: string
+  /** True when Codex tags this as its default model. */
+  isDefault: boolean
+  /** When true the model is functional but intentionally hidden from the picker. */
+  hidden: boolean
+}
+
+export interface CodexModelListResponse {
+  data: CodexModelInfo[]
+  /** Opaque cursor; null when there are no more pages. */
+  nextCursor: string | null
+}
+
 export interface Project {
   id: string
   name: string
@@ -52,6 +70,8 @@ export interface AgentRun {
   handoffFromRunId?: string
   providerThreadId?: string
   providerTurnId?: string
+  /** Codex model id used for this run (matches `CodexModelInfo.id`); undefined means Codex's default. */
+  model?: string
   summary?: string
   entries: TimelineEntry[]
 }
@@ -61,6 +81,8 @@ export interface StartCodexRunInput {
   prompt: string
   sessionId?: string
   forceNewSession?: boolean
+  /** Codex model id (matches `CodexModelInfo.id`) to spin up the thread with. Ignored when resuming an existing thread. */
+  model?: string
 }
 
 export interface StartCodexRunResult {
@@ -120,6 +142,8 @@ export interface ICodeApi {
   codex: {
     start(input: StartCodexRunInput): Promise<StartCodexRunResult>
     interrupt(runId: string): Promise<void>
+    /** Lists the models Codex currently exposes. Cached lazily by the main process. */
+    listModels(): Promise<CodexModelListResponse>
     onEvent(listener: (event: CodexRunEvent) => void): () => void
     /** Subscribes to mid-turn approval requests from Codex. Returns an unsubscribe function. */
     onApprovalRequest(listener: (request: CodexApprovalRequest) => void): () => void

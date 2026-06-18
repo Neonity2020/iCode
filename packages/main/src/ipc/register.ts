@@ -55,9 +55,10 @@ export function registerIpcHandlers(workspaceService: WorkspaceService, sessionS
     prompt: string,
     sessionId?: string,
     forceNewSession = false,
+    model?: string,
   ) => {
     activeSender = event.sender
-    const started = await sessionService.startCodexRun(projectId, prompt, sessionId, forceNewSession)
+    const started = await sessionService.startCodexRun(projectId, prompt, sessionId, forceNewSession, model)
     const sendEvent = (runEvent: CodexRunEvent) => {
       if (!event.sender.isDestroyed()) event.sender.send(IPC_CHANNELS.codexRunEvent, runEvent)
     }
@@ -85,6 +86,7 @@ export function registerIpcHandlers(workspaceService: WorkspaceService, sessionS
           void finishAndSend(status, response, message)
         },
         started.providerThreadId,
+        model,
       ).then((provider) => {
         void sessionService.attachProviderIds(started.run.id, provider.threadId, provider.turnId).catch((error) => {
           console.error('Failed to persist Codex provider identifiers', error)
@@ -99,4 +101,5 @@ export function registerIpcHandlers(workspaceService: WorkspaceService, sessionS
     return { session: started.session, run: started.run }
   })
   ipcMain.handle(IPC_CHANNELS.codexRunInterrupt, (_event, runId: string) => codexService.interrupt(runId))
+  ipcMain.handle(IPC_CHANNELS.codexModelsList, () => codexService.listModels())
 }

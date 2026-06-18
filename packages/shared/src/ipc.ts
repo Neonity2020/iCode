@@ -9,6 +9,7 @@ export const IPC_CHANNELS = {
   codexRunStart: 'codex:run:start',
   codexRunInterrupt: 'codex:run:interrupt',
   codexRunEvent: 'codex:run:event',
+  codexModelsList: 'codex:models:list',
   // Approval flow: main pushes a request, renderer resolves it via `respond`.
   codexApprovalRequest: 'codex:approval:request',
   codexApprovalRespond: 'codex:approval:respond',

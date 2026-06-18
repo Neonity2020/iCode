@@ -1,4 +1,4 @@
-import { ArrowDown, Bot, FileCode2, MessagesSquare, Send, Sparkles, Square } from 'lucide-react'
+import { ArrowDown, Bot, FileCode2, Loader2, MessagesSquare, Send, Sparkles, Square } from 'lucide-react'
 import { useEffect, useRef, useState, type FormEvent, type UIEvent } from 'react'
 import ReactMarkdown from 'react-markdown'
 import type { AgentRun } from '@icode/shared'
@@ -18,7 +18,11 @@ function RunCard({ run }: { run: AgentRun }) {
 }
 
 export function Timeline() {
-  const { sessions, runs, sessionId, selectedAgent, isStartingRun, runError, startCodexRun, interruptRun } = useWorkspaceStore()
+  const {
+    sessions, runs, sessionId, selectedAgent, selectedModel, availableModels,
+    isLoadingModels, isStartingRun, runError,
+    startCodexRun, interruptRun, setModel, loadAvailableModels,
+  } = useWorkspaceStore()
   const [prompt, setPrompt] = useState('')
   const timelineRef = useRef<HTMLDivElement>(null)
   const shouldFollowOutput = useRef(true)
@@ -39,6 +43,12 @@ export function Timeline() {
     return () => cancelAnimationFrame(frame)
   }, [runs.length, latestEntry?.content, isStartingRun])
 
+  // Prime the model catalog once on mount; the result is cached in the main process
+  // so the request only spins up the Codex app-server on first call.
+  useEffect(() => {
+    void loadAvailableModels()
+  }, [loadAvailableModels])
+
   function handleTimelineScroll(event: UIEvent<HTMLDivElement>) {
     const timeline = event.currentTarget
     shouldFollowOutput.current = timeline.scrollHeight - timeline.scrollTop - timeline.clientHeight < 80
@@ -49,12 +59,14 @@ export function Timeline() {
     if (!prompt.trim() || activeRun || isStartingRun) return
     shouldFollowOutput.current = true
     try {
-      await startCodexRun(prompt)
+      await startCodexRun(prompt, { model: selectedModel })
       setPrompt('')
     } catch {
       // The store exposes the runtime error beside the composer.
     }
   }
+
+  const hasModels = availableModels.length > 0
 
   return <main className="timeline-shell">
     <div className="timeline-title"><div><span>Project timeline</span><h2>{session?.title ?? 'New session'}</h2></div><button className="context-button"><Sparkles size={15} /> Project context</button></div>
@@ -65,7 +77,29 @@ export function Timeline() {
       {runs.map((run, index) => <div key={run.id}>{index > 0 && <div className="handoff"><span /><div><MessagesSquare size={14} /> Conversation turn</div><span /></div>}<RunCard run={run} /></div>)}
     </div>
     <form className="composer" onSubmit={handleSubmit}>
-      <div className="composer-meta"><span className={`agent-dot ${selectedAgent}`} /> {session ? `Session with ${agentLabels[selectedAgent]}` : `New session with ${agentLabels[selectedAgent]}`}<span>Workspace-write sandbox</span></div>
+      <div className="composer-meta">
+        <span className={`agent-dot ${selectedAgent}`} /> {session ? `Session with ${agentLabels[selectedAgent]}` : `New session with ${agentLabels[selectedAgent]}`}
+        <span>Workspace-write sandbox</span>
+        <select
+          className={`model-picker${isLoadingModels || !hasModels ? ' loading' : ''}`}
+          value={selectedModel}
+          onChange={(event) => setModel(event.currentTarget.value)}
+          disabled={Boolean(activeRun) || isStartingRun || isLoadingModels || !hasModels}
+          aria-label="Codex model"
+          title={isLoadingModels ? 'Loading Codex models…' : 'Codex model — only used when this run starts a new thread'}
+        >
+          {isLoadingModels && (
+            <option value={selectedModel}>Loading models…</option>
+          )}
+          {!isLoadingModels && !hasModels && (
+            <option value={selectedModel}>No models available</option>
+          )}
+          {hasModels && availableModels.map((model) => (
+            <option key={model.id} value={model.id}>{model.displayName}{model.isDefault ? ' · default' : ''}</option>
+          ))}
+        </select>
+        {isLoadingModels && <Loader2 size={11} className="model-picker-spinner" aria-hidden="true" />}
+      </div>
       {runError && <div className="composer-error" role="alert">{runError}</div>}
       <div className="composer-input">
         <textarea
