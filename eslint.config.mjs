@@ -9,7 +9,7 @@ export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
-    files: ['packages/renderer/src/**/*.{ts,tsx}'],
+    files: ['apps/desktop/src/renderer/**/*.{ts,tsx}'],
     languageOptions: { globals: globals.browser },
     plugins: { 'react-hooks': reactHooks, 'react-refresh': reactRefresh },
     rules: {
@@ -18,7 +18,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ['packages/main/src/**/*.ts', 'packages/preload/src/**/*.ts', '*.config.ts'],
+    files: ['apps/desktop/src/main/**/*.ts', 'apps/desktop/src/preload/**/*.ts', '**/*.config.ts'],
     languageOptions: { globals: globals.node },
   },
 )

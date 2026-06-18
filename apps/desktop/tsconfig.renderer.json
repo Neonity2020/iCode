@@ -4,6 +4,6 @@
     "jsx": "react-jsx",
     "types": ["vite/client"]
   },
-  "include": ["src"],
-  "references": [{ "path": "../shared" }]
+  "include": ["src/renderer"],
+  "references": [{ "path": "../../packages/shared" }]
 }
