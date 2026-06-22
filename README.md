@@ -1,50 +1,29 @@
 # iCode
 
-> One Project. Multiple Coding Agents.
+A focused desktop workspace for coding with agents. The UI borrows OpenWork's calm, task-first layout while keeping the runtime intentionally small.
 
-iCode is a project-centric desktop workspace for Codex, Claude Code, and OpenCode. The product model is built around projects, sessions, agent runs, handoffs, and Git state rather than standalone chat threads.
+## Stack
+
+- Electron 40
+- React 19
+- Vite 8
+- Vite+ 0.2
+- TypeScript 6
 
 ## Development
 
-This project uses [bun](https://bun.sh) for package management and scripts, organized as a monorepo.
+Vite+ manages the required Node version and delegates dependency installation to pnpm.
 
 ```bash
-bun install
-bun run dev
+vp install
+vp run dev
 ```
 
-Useful checks:
+Run checks and create the renderer build:
 
 ```bash
-bun run typecheck   # type-check all workspace packages
-bun run lint        # eslint across the repo
-bun run package     # build & package the desktop app
-bun run build:shared # emit @icode/shared dist artifacts
+vp check
+vp build
 ```
 
-## Repository layout
-
-```text
-apps/
-└── desktop/   @icode/desktop — Electron app (main, preload, and React renderer)
-packages/
-└── shared/    @icode/shared  — domain models and IPC contracts (types + IPC_CHANNELS)
-```
-
-`@icode/desktop` owns the complete deployable application, including its Electron
-Forge and Vite configuration. Its `main`, `preload`, and `renderer` directories are
-process boundaries within one app, not independently versioned packages.
-
-`@icode/shared` is a dependency-free leaf package for contracts that can be reused
-by desktop and future applications.
-
-### Path resolution
-
-Cross-package imports use the `@icode/shared` package name. Each Vite config maps this name to the shared source so it resolves correctly in both dev and packaged builds without relying on `node_modules` symlinks.
-
-## Next Milestones
-
-1. Add SQLite repositories for projects, sessions, agent runs, timeline entries, and handoff context.
-2. Add `node-pty` agent runtimes and streaming IPC.
-3. Connect native project selection, file browsing, and Git status/diff services.
-4. Replace the representative renderer data with persisted project state.
+The current app is an interactive desktop shell. Agent runtime and OpenCode SDK integration are deliberately kept out of this first scaffold.

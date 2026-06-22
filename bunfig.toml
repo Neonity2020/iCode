@@ -1,6 +1,0 @@
-[install]
-# Keep workspace dependencies visible to Electron Forge during packaging.
-linker = "hoisted"
-
-[test]
-# Placeholder; per-package tests can override.

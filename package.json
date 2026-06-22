@@ -1,31 +1,42 @@
 {
-  "name": "icode-monorepo",
-  "version": "0.1.0",
-  "description": "One Project. Multiple Coding Agents.",
+  "name": "icode",
+  "version": "0.0.0",
   "private": true,
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ],
+  "description": "A focused desktop workspace for coding with agents",
+  "type": "module",
+  "main": "electron/main.mjs",
   "scripts": {
-    "dev": "bun run --cwd apps/desktop dev",
-    "package": "bun run --cwd apps/desktop package",
-    "make": "bun run --cwd apps/desktop make",
-    "lint": "eslint .",
-    "typecheck": "bun run typecheck:shared && bun run typecheck:desktop",
-    "typecheck:shared": "cd packages/shared && bun run typecheck",
-    "typecheck:desktop": "bun run --cwd apps/desktop typecheck",
-    "build:shared": "cd packages/shared && bun run build"
+    "dev": "node scripts/dev.mjs",
+    "dev:web": "vp dev",
+    "check": "vp check",
+    "build": "vp check && vp build",
+    "preview": "vp preview",
+    "start": "electron ."
+  },
+  "dependencies": {
+    "lucide-react": "^0.468.0",
+    "react": "19.2.4",
+    "react-dom": "19.2.4"
   },
   "devDependencies": {
-    "@eslint/js": "9.39.1",
-    "@types/node": "25.9.3",
-    "eslint": "9.39.1",
-    "eslint-plugin-react-hooks": "7.1.1",
-    "eslint-plugin-react-refresh": "0.5.3",
-    "globals": "17.6.0",
-    "typescript": "5.9.3",
-    "typescript-eslint": "8.50.1",
-    "vite": "5.4.21"
+    "@types/node": "^25.0.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "electron": "^40.0.0",
+    "typescript": "~6.0.2",
+    "vite": "^8.0.0",
+    "vite-plus": "^0.2.1"
+  },
+  "optionalDependencies": {
+    "@oxfmt/binding-darwin-arm64": "0.55.0",
+    "@oxlint/binding-darwin-arm64": "1.70.0",
+    "@rolldown/binding-darwin-arm64": "1.0.3",
+    "@voidzero-dev/vite-plus-darwin-arm64": "0.2.1"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "electron"
+    ]
   }
 }
