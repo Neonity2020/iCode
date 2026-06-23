@@ -11,14 +11,19 @@
     "check": "vp check",
     "build": "vp check && vp build",
     "preview": "vp preview",
-    "start": "electron ."
+    "start": "electron .",
+    "postinstall": "electron-rebuild -f -w node-pty"
   },
   "dependencies": {
+    "@xterm/addon-fit": "^0.10.0",
+    "@xterm/xterm": "^5.5.0",
     "lucide-react": "^0.468.0",
+    "node-pty": "^1.0.0",
     "react": "19.2.4",
     "react-dom": "19.2.4"
   },
   "devDependencies": {
+    "@electron/rebuild": "^4.0.1",
     "@types/node": "^25.0.0",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
@@ -34,9 +39,17 @@
     "@rolldown/binding-darwin-arm64": "1.0.3",
     "@voidzero-dev/vite-plus-darwin-arm64": "0.2.1"
   },
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "11.8.0",
+      "onFail": "download"
+    }
+  },
   "pnpm": {
     "onlyBuiltDependencies": [
-      "electron"
+      "electron",
+      "node-pty"
     ]
   }
 }

@@ -1,0 +1,4 @@
+minimumReleaseAge: 0
+allowBuilds:
+  electron: true
+  node-pty: true
