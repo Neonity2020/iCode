@@ -249,7 +249,7 @@ kbd {
 
 .main-panel {
   display: grid;
-  grid-template-rows: 54px minmax(0, 1fr) auto;
+  grid-template-rows: 54px 42px minmax(0, 1fr);
   min-width: 0;
   background: #fbfbf9;
 }
@@ -302,6 +302,102 @@ kbd {
   background: #f7f7f4;
   color: #696965;
   font-size: 11px;
+}
+
+.tabbar {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 8px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border);
+  background: #f5f5f2;
+}
+.tab-list {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  gap: 6px;
+  overflow-x: auto;
+}
+.tab-item {
+  display: flex;
+  align-items: center;
+  min-width: 150px;
+  max-width: 220px;
+  height: 30px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+}
+.tab-item.active {
+  border-color: #ddddda;
+  background: #fbfbf9;
+  box-shadow: 0 1px 2px rgba(30, 30, 25, 0.04);
+}
+.tab-select {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  height: 100%;
+  padding: 0 7px 0 9px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+.tab-title {
+  overflow: hidden;
+  flex: 1;
+  font-size: 12px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tab-meta {
+  flex: none;
+  color: #9a9a95;
+  font-size: 10.5px;
+}
+.tab-close,
+.tab-add,
+.mini-button {
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #777772;
+  cursor: pointer;
+}
+.tab-close {
+  width: 24px;
+  height: 24px;
+  margin-right: 3px;
+}
+.tab-add {
+  flex: none;
+  width: 29px;
+  height: 29px;
+  background: #e6e6e2;
+}
+.tab-close:hover,
+.tab-add:hover,
+.mini-button:hover {
+  background: #dfdfdb;
+}
+.workspace-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  min-height: 0;
+}
+.work-column {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  min-width: 0;
 }
 
 .conversation {
@@ -418,6 +514,104 @@ kbd {
   font-size: 13px;
 }
 
+.right-rail {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) 220px;
+  min-width: 0;
+  gap: 10px;
+  padding: 12px;
+  border-left: 1px solid var(--border);
+  background: #f1f1ee;
+}
+.rail-card {
+  overflow: hidden;
+  border: 1px solid #deded9;
+  border-radius: 12px;
+  background: #fbfbf8;
+}
+.rail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 42px;
+  padding: 0 11px;
+  border-bottom: 1px solid #e5e5e0;
+}
+.rail-header > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+.rail-header strong {
+  font-size: 12px;
+  font-weight: 600;
+}
+.rail-header span {
+  overflow: hidden;
+  color: #898984;
+  font-size: 10.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mini-button {
+  width: 24px;
+  height: 24px;
+}
+.file-list {
+  padding: 7px;
+  overflow-y: auto;
+}
+.file-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 28px;
+  gap: 7px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #4d4d49;
+  cursor: pointer;
+  font-size: 12px;
+  text-align: left;
+}
+.file-row:hover {
+  background: #eeeeea;
+}
+.file-row svg {
+  flex: none;
+  color: #858580;
+}
+.file-row span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.file-row.depth-1 {
+  padding-left: 24px;
+}
+.terminal-card {
+  display: grid;
+  grid-template-rows: 42px minmax(0, 1fr);
+}
+.terminal-window {
+  overflow: auto;
+  padding: 11px;
+  background: #242422;
+  color: #e8e8df;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 11px;
+  line-height: 1.65;
+}
+.terminal-line {
+  white-space: nowrap;
+}
+.terminal-cursor {
+  color: #a8d29d;
+}
+
 .composer-wrap {
   width: min(calc(100% - 48px), 760px);
   margin: 0 auto;
@@ -525,6 +719,12 @@ kbd {
     min-width: 228px;
   }
   .status-pill {
+    display: none;
+  }
+  .workspace-split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .right-rail {
     display: none;
   }
 }
