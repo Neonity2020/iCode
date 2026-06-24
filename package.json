@@ -2,30 +2,20 @@
   "name": "icode",
   "version": "0.0.0",
   "private": true,
-  "description": "A focused desktop workspace for coding with agents",
+  "description": "iCode desktop and web workspace",
   "type": "module",
-  "main": "electron/main.mjs",
   "scripts": {
-    "dev": "node scripts/dev.mjs",
-    "dev:web": "vp dev",
-    "check": "vp check",
-    "build": "vp check && vp build",
-    "preview": "vp preview",
-    "start": "electron .",
-    "postinstall": "electron-rebuild -f -w node-pty"
-  },
-  "dependencies": {
-    "@xterm/addon-fit": "^0.10.0",
-    "@xterm/xterm": "^5.5.0",
-    "lucide-react": "^0.468.0",
-    "node-pty": "^1.0.0",
-    "react": "19.2.4",
-    "react-dom": "19.2.4",
-    "react-markdown": "^10.1.0",
-    "remark-gfm": "^4.0.1"
+    "dev": "node apps/desktop/dev.mjs",
+    "dev:desktop": "node apps/desktop/dev.mjs",
+    "dev:web": "node scripts/run-app.mjs web dev",
+    "check": "vp check && tsc -p packages/app/tsconfig.json && tsc -p apps/desktop/tsconfig.json && tsc -p apps/web/tsconfig.json",
+    "build": "vp check && tsc -p packages/app/tsconfig.json && tsc -p apps/desktop/tsconfig.json && tsc -p apps/web/tsconfig.json && node scripts/run-app.mjs desktop build && node scripts/run-app.mjs web build",
+    "build:desktop": "node scripts/run-app.mjs desktop build",
+    "build:web": "node scripts/run-app.mjs web build",
+    "preview:web": "node scripts/run-app.mjs web preview",
+    "start": "node scripts/run-app.mjs desktop start"
   },
   "devDependencies": {
-    "@electron/rebuild": "^4.0.1",
     "@types/node": "^25.0.0",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
@@ -41,17 +31,5 @@
     "@rolldown/binding-darwin-arm64": "1.0.3",
     "@voidzero-dev/vite-plus-darwin-arm64": "0.2.1"
   },
-  "devEngines": {
-    "packageManager": {
-      "name": "pnpm",
-      "version": "11.8.0",
-      "onFail": "download"
-    }
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "electron",
-      "node-pty"
-    ]
-  }
+  "packageManager": "pnpm@11.8.0"
 }

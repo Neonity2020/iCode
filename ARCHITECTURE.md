@@ -1,46 +1,56 @@
 # iCode architecture
 
-The renderer is organized by responsibility instead of by page size.
+## Monorepo boundaries
 
-## Layers
+```text
+apps/desktop ─┐
+              ├──> packages/app ───> packages/platform
+apps/web ─────┘
+```
 
-- `src/domain/` — shared business types. No React and no side effects.
-- `src/config/` — product constants and supported options.
-- `src/lib/` — pure formatting and protocol helper functions.
-- `src/state/` — persistence, normalization, and state migration.
-- `src/hooks/` — stateful integrations and reusable interaction controllers.
-- `src/components/` — focused UI components with explicit props.
-- `src/App.tsx` — application composition and user commands.
-- `electron/` — privileged desktop runtime and IPC boundary.
+- `apps/desktop` owns Electron, native process lifecycle, IPC, filesystem, and PTY access.
+- `apps/web` owns browser bootstrap and the future remote service adapter.
+- `packages/app` owns the product UI, state, hooks, and cross-platform behavior.
+- `packages/platform` owns the contract between product code and a host environment.
 
-## Dependency direction
+Apps may import packages. Packages must never import an app.
 
-Components may depend on `domain`, `config`, and `lib`. Hooks may additionally
-depend on `state`. Domain and library modules must never import components or
-hooks. `App.tsx` is the composition root and is the only renderer module that
-should coordinate several features at once.
+## Shared application layers
+
+Inside `packages/app/src`:
+
+- `domain/` contains business types with no React or side effects.
+- `config/` contains product constants and supported options.
+- `lib/` contains pure formatting and protocol helpers.
+- `state/` contains persistence, normalization, and migration.
+- `hooks/` contains stateful integrations and interaction controllers.
+- `components/` contains focused UI components.
+- `platform/` contains the React context for the injected host API.
+- `App.tsx` is the shared composition root.
+
+Components may depend on `domain`, `config`, `lib`, and the platform context. Hooks may also
+depend on `state`. Domain and library modules must not import components or hooks.
+
+## Platform contract
+
+`@icode/platform` exposes one `ICodePlatformApi` contract. Capability flags describe whether a
+host supports local workspace selection, filesystem access, and terminals.
+
+- Desktop satisfies the contract through `apps/desktop/electron/preload.cjs`.
+- Web satisfies the same contract through `apps/web/src/platform.ts`.
+
+Platform-specific behavior should be added to an app adapter first. Shared product code should
+only change when the behavior is genuinely common to both applications.
 
 ## Feature ownership
 
-- Codex notifications and request routing: `hooks/useCodexEvents.ts`
-- Session persistence and backward-compatible normalization:
-  `state/persistence.ts`
-- Panel resizing and animation-frame batching: `hooks/usePanelResize.ts`
-- Conversation rendering: `components/ConversationView.tsx`
-- Activity bundle behavior: `components/ActivityBundle.tsx`
-- Right sidebar tabs: `components/RightSidebar.tsx`
-- Filesystem tree: `components/FileTreeTab.tsx`
-- PTY lifecycle: `components/TerminalTab.tsx`
-
-## Change guidelines
-
-1. Add protocol data shapes to `domain/types.ts`.
-2. Keep protocol-to-view translations in `lib/` or the owning hook.
-3. Keep components unaware of local storage, IPC event routing, and sibling
-   component state.
-4. Add new right-sidebar tools through `RightSidebarTabKind` and
-   `RightSidebar`, without adding branches to the conversation UI.
-5. Normalize persisted data at the state boundary so UI components can rely on
-   valid types.
+- Codex notifications and request routing: `packages/app/src/hooks/useCodexEvents.ts`
+- Session persistence and normalization: `packages/app/src/state/persistence.ts`
+- Panel resizing: `packages/app/src/hooks/usePanelResize.ts`
+- Conversation UI: `packages/app/src/components/ConversationView.tsx`
+- Filesystem tree: `packages/app/src/components/FileTreeTab.tsx`
+- PTY lifecycle: `packages/app/src/components/TerminalTab.tsx`
+- Desktop Codex process: `apps/desktop/electron/main.mjs`
+- Web service adapter: `apps/web/src/platform.ts`
 
 Run `pnpm check` and `pnpm build` after structural changes.
