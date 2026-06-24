@@ -1,6 +1,12 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("icode", {
+  kind: "desktop",
+  capabilities: {
+    localWorkspace: true,
+    fileSystem: true,
+    terminal: true,
+  },
   getState: () => ipcRenderer.invoke("icode:get-state"),
   pickDirectory: () => ipcRenderer.invoke("icode:pick-directory"),
   startThread: (payload) => ipcRenderer.invoke("icode:codex-start-thread", payload),

@@ -23,9 +23,11 @@ import type {
 } from "./domain/types";
 import { useCodexEvents } from "./hooks/useCodexEvents";
 import { usePanelResize } from "./hooks/usePanelResize";
+import { usePlatform } from "./platform/PlatformContext";
 import { buildSession, loadStoredState, persistState } from "./state/persistence";
 
 export function App() {
+  const platform = usePlatform();
   const [appState, setAppState] = useState<StoredState>(() => loadStoredState());
   const [runtime, setRuntime] = useState<RuntimeStatus>({
     state: "starting",
@@ -102,7 +104,10 @@ export function App() {
     const handle = window.setTimeout(() => {
       try {
         const persistTabs: StoredRightSidebarTab[] = tabs
-          .filter((t) => t.kind !== "terminal")
+          .filter(
+            (tab): tab is RightSidebarTab & { kind: StoredRightSidebarTab["kind"] } =>
+              tab.kind !== "terminal",
+          )
           .map((t) => ({ id: t.id, kind: t.kind, title: t.title, cwd: t.cwd }));
         persistState({
           ...appState,
@@ -143,7 +148,11 @@ export function App() {
   }, []);
 
   async function chooseWorkspace() {
-    const directory = await window.icode?.pickDirectory();
+    if (!platform.capabilities.localWorkspace) {
+      setError("Web 端工作区选择尚未接入");
+      return;
+    }
+    const directory = await platform.pickDirectory();
     if (!directory) return;
     setAppState((current) => ({
       ...current,
@@ -215,7 +224,7 @@ export function App() {
     try {
       let threadId = currentSession?.threadId;
       if (!threadId) {
-        const result = await window.icode?.startThread({ model: selectedModel });
+        const result = await platform.startThread({ model: selectedModel });
         threadId = result?.thread.id;
         if (!threadId) throw new Error("Codex 未返回 thread id");
         setAppState((current) => ({
@@ -226,7 +235,7 @@ export function App() {
         }));
         threadSessionMapRef.current.set(threadId, sessionId);
       }
-      const result = await window.icode?.sendTurn({
+      const result = await platform.sendTurn({
         threadId,
         text: content,
         model: selectedModel,
@@ -272,7 +281,7 @@ export function App() {
   }
 
   async function answerApproval(approval: Approval, decision: "accept" | "decline") {
-    await window.icode?.respondToCodex({ id: approval.id, result: { decision } });
+    await platform.respondToCodex({ id: approval.id, result: { decision } });
     const sessionId = runningTurnRef.current?.sessionId ?? appState.activeSessionId;
     setAppState((current) => ({
       ...current,
@@ -292,7 +301,7 @@ export function App() {
 
   async function interrupt() {
     if (!activeTurn) return;
-    await window.icode?.interruptTurn(activeTurn);
+    await platform.interruptTurn(activeTurn);
     sendingRef.current = false;
     runningTurnRef.current = null;
     setAppState((current) => ({
@@ -441,7 +450,7 @@ export function App() {
     const tab = tabsRef.current.find((t) => t.id === id);
     if (!tab || tab.kind === "files") return;
     if (tab.kind === "terminal") {
-      disposeTerminalTab(id);
+      disposeTerminalTab(id, platform);
     }
     setTabs((current) => current.filter((t) => t.id !== id));
     setActiveTabId((current) => {

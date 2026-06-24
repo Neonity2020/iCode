@@ -1,6 +1,6 @@
 import react from "@vitejs/plugin-react";
-import { defineConfig } from "vite-plus";
-import { getDevPort } from "./scripts/dev-config.mjs";
+import { defineConfig } from "vite";
+import { getDevPort } from "../../scripts/dev-config.mjs";
 
 function devPortHtmlPlugin() {
   const devPort = String(getDevPort());
@@ -14,7 +14,7 @@ function devPortHtmlPlugin() {
 
 export default defineConfig({
   base: "./",
-  plugins: [react(), devPortHtmlPlugin()],
+  plugins: [...react(), devPortHtmlPlugin()],
   server: {
     host: "127.0.0.1",
     port: getDevPort(),

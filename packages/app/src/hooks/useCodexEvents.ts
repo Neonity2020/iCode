@@ -8,6 +8,7 @@ import type {
   StoredState,
 } from "../domain/types";
 import { describeItem } from "../lib/codex";
+import { usePlatform } from "../platform/PlatformContext";
 import { resetSessionForNewLaunch } from "../state/persistence";
 
 export type RunningTurn = {
@@ -23,6 +24,7 @@ type UseCodexEventsOptions = {
 };
 
 export function useCodexEvents({ appState, setAppState, setRuntime }: UseCodexEventsOptions) {
+  const platform = usePlatform();
   const sendingRef = useRef(false);
   const runningTurnRef = useRef<RunningTurn | null>(null);
   const appStateRef = useRef(appState);
@@ -42,7 +44,7 @@ export function useCodexEvents({ appState, setAppState, setRuntime }: UseCodexEv
   }, [appState.sessions]);
 
   useEffect(() => {
-    void window.icode?.getState().then((state) => {
+    void platform.getState().then((state) => {
       setAppState((current) => ({ ...current, workspacePath: state.workspace }));
       setRuntime({ ...state.codex, launchId: state.launchId });
       setAppState((current) => {
@@ -55,7 +57,7 @@ export function useCodexEvents({ appState, setAppState, setRuntime }: UseCodexEv
       });
     });
 
-    return window.icode?.onCodexEvent((event) => {
+    return platform.onCodexEvent((event) => {
       const eventKey = JSON.stringify(event);
       const now = performance.now();
       const previousSeenAt = recentEventsRef.current.get(eventKey);
@@ -298,7 +300,7 @@ export function useCodexEvents({ appState, setAppState, setRuntime }: UseCodexEv
         }));
       }
     });
-  }, [setAppState, setRuntime]);
+  }, [platform, setAppState, setRuntime]);
 
   return { sendingRef, runningTurnRef, threadSessionMapRef };
 }

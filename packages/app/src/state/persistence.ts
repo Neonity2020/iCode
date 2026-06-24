@@ -1,6 +1,7 @@
 import { DEFAULT_MODEL, MODEL_OPTIONS, PANEL_WIDTHS, STORAGE_KEY } from "../config/app";
 import type {
   Conversation,
+  FileChange,
   FileChangeKind,
   Message,
   ModelId,
@@ -132,7 +133,7 @@ function normalizeConversation(raw: unknown): Conversation {
         const rawKind = typeof item.kind === "string" ? item.kind : "modify";
         const kind: FileChangeKind = rawKind === "add" || rawKind === "delete" ? rawKind : "modify";
         const rawStatus = typeof item.status === "string" ? item.status : "completed";
-        const status =
+        const status: FileChange["status"] =
           rawStatus === "inProgress" || rawStatus === "failed" ? rawStatus : "completed";
         return [
           {

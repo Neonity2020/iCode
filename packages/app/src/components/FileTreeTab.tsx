@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
   type MouseEvent as ReactMouseEvent,
+  type ReactNode,
 } from "react";
 import {
   ChevronRight,
@@ -16,12 +17,14 @@ import {
   FileLock2,
   FileTerminal,
   FileText,
+  FolderOpen,
   Hash,
   RefreshCw,
   Zap,
 } from "lucide-react";
 import type { DirNode, RightSidebarTab } from "../domain/types";
 import { compactPath } from "../lib/paths";
+import { usePlatform } from "../platform/PlatformContext";
 
 type TreeState = {
   loading: boolean;
@@ -52,7 +55,7 @@ type TreeFileBadge = {
     | "terminal"
     | "generic";
   label?: string;
-  icon?: JSX.Element;
+  icon?: ReactNode;
 };
 
 function getTreeFileBadge(name: string): TreeFileBadge {
@@ -188,6 +191,7 @@ type FileTreeTabProps = {
 };
 
 export function FileTreeTab({ tab, expandedDirs, onToggleExpand }: FileTreeTabProps) {
+  const platform = usePlatform();
   const restoredExpanded = useMemo(() => new Set(expandedDirs), [expandedDirs]);
   const [state, setState] = useState<TreeState>({
     loading: true,
@@ -203,7 +207,7 @@ export function FileTreeTab({ tab, expandedDirs, onToggleExpand }: FileTreeTabPr
 
   const reload = useCallback(() => {
     setState((current) => ({ ...current, loading: true, error: null }));
-    window.icode?.listFs({ path: tab.cwd }).then(
+    platform.listFs({ path: tab.cwd }).then(
       (response) => {
         setState((current) => {
           const expanded = new Set(current.expanded);
@@ -226,7 +230,7 @@ export function FileTreeTab({ tab, expandedDirs, onToggleExpand }: FileTreeTabPr
           error: String(error instanceof Error ? error.message : error),
         })),
     );
-  }, [tab.cwd]);
+  }, [platform, tab.cwd]);
 
   useEffect(() => reload(), [reload]);
   useEffect(() => {
@@ -313,7 +317,7 @@ export function FileTreeTab({ tab, expandedDirs, onToggleExpand }: FileTreeTabPr
             className="tree-menu-item"
             onClick={() => {
               setMenu(null);
-              void window.icode?.revealInFinder(menu.path);
+              void platform.revealInFinder(menu.path);
             }}
           >
             <FolderOpen size={13} />

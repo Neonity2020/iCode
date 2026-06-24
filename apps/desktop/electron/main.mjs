@@ -1,13 +1,15 @@
 import { spawn, spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { accessSync, constants } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import readline from "node:readline";
 import { fileURLToPath } from "node:url";
 import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
 
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
-const projectDirectory = path.resolve(currentDirectory, "..");
+const desktopDirectory = path.resolve(currentDirectory, "..");
+const projectDirectory = path.resolve(desktopDirectory, "../..");
 const windows = new Set();
 let selectedWorkspace = projectDirectory;
 const appRunId = randomUUID();
@@ -16,6 +18,12 @@ const supportedModels = new Set(["gpt-5.5", "gpt-5.4", "gpt-5.4-mini"]);
 function findCodexExecutable() {
   const candidates = [
     process.env.CODEX_CLI_PATH,
+    ...(process.platform === "darwin"
+      ? [
+          "/Applications/Codex.app/Contents/Resources/codex",
+          path.join(os.homedir(), "Applications/Codex.app/Contents/Resources/codex"),
+        ]
+      : []),
     "/opt/homebrew/bin/codex",
     "/usr/local/bin/codex",
   ].filter(Boolean);
@@ -272,7 +280,7 @@ function createWindow() {
 
   const developmentUrl = process.env.VITE_DEV_SERVER_URL;
   if (developmentUrl) void window.loadURL(developmentUrl);
-  else void window.loadFile(path.join(projectDirectory, "dist", "index.html"));
+  else void window.loadFile(path.join(desktopDirectory, "dist", "index.html"));
 }
 
 ipcMain.handle("icode:get-state", () => ({

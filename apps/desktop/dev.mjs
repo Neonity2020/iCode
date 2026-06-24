@@ -1,23 +1,22 @@
 import { spawn } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { getDevPort, getDevServerUrl } from "./dev-config.mjs";
+import { getDevServerUrl } from "../../scripts/dev-config.mjs";
 
-const projectDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const desktopDirectory = path.dirname(fileURLToPath(import.meta.url));
+const projectDirectory = path.resolve(desktopDirectory, "../..");
 const vitePlusCli = path.join(projectDirectory, "node_modules", "vite-plus", "bin", "vp");
 const electronCli = path.join(projectDirectory, "node_modules", "electron", "cli.js");
 const children = new Set();
-const devPort = getDevPort();
 const devServerUrl = getDevServerUrl();
 const devEnv = {
   ...process.env,
-  VITE_DEV_PORT: String(devPort),
   VITE_DEV_SERVER_URL: devServerUrl,
 };
 
 function run(entry, args, env = process.env) {
   const child = spawn(process.execPath, [entry, ...args], {
-    cwd: projectDirectory,
+    cwd: desktopDirectory,
     env,
     stdio: "inherit",
   });
@@ -52,4 +51,4 @@ process.on("SIGTERM", () => stop());
 
 run(vitePlusCli, ["dev"], devEnv);
 await waitForServer(devServerUrl);
-run(electronCli, ["."], devEnv);
+run(electronCli, [desktopDirectory], devEnv);

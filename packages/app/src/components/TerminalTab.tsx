@@ -1,12 +1,14 @@
 import { useEffect, useRef } from "react";
+import type { ICodePlatformApi } from "@icode/platform";
 import type { PtySession, RightSidebarTab } from "../domain/types";
+import { usePlatform } from "../platform/PlatformContext";
 
 export const ptySessions = new Map<string, PtySession>();
 
-export function disposeTerminalTab(id: string) {
+export function disposeTerminalTab(id: string, platform: ICodePlatformApi) {
   const session = ptySessions.get(id);
   if (!session) return;
-  if (session.ptyId) void window.icode?.ptyKill({ id: session.ptyId }).catch(() => {});
+  if (session.ptyId) void platform.ptyKill({ id: session.ptyId }).catch(() => {});
   session.unsubscribe();
   session.exitUnsub();
   session.terminal?.dispose();
@@ -15,6 +17,7 @@ export function disposeTerminalTab(id: string) {
 }
 
 export function TerminalTab({ tab }: { tab: RightSidebarTab }) {
+  const platform = usePlatform();
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -51,8 +54,7 @@ export function TerminalTab({ tab }: { tab: RightSidebarTab }) {
       session.terminal = terminal;
       session.fitAddon = fitAddon;
 
-      const api = window.icode;
-      if (!api) return;
+      const api = platform;
       const { id } = await api.ptySpawn({ cwd: tab.cwd, cols, rows });
       session.ptyId = id;
       session.unsubscribe = api.onPtyData(({ id: incomingId, data }) => {
@@ -80,9 +82,9 @@ export function TerminalTab({ tab }: { tab: RightSidebarTab }) {
 
     return () => {
       cancelled = true;
-      disposeTerminalTab(tab.id);
+      disposeTerminalTab(tab.id, platform);
     };
-  }, [tab.cwd, tab.id]);
+  }, [platform, tab.cwd, tab.id]);
 
   return <div className="terminal-container" ref={containerRef} />;
 }

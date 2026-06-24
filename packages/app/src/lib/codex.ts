@@ -1,6 +1,6 @@
 import type { Activity, Approval, CodexItem } from "../domain/types";
 
-export function stringifyDetail(value: unknown) {
+export function stringifyDetail(value: unknown): string {
   if (typeof value === "string") return value;
   if (Array.isArray(value)) return value.map(stringifyDetail).filter(Boolean).join(", ");
   if (value && typeof value === "object") return JSON.stringify(value);

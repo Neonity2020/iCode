@@ -1,4 +1,9 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
 minimumReleaseAge: 0
+verifyDepsBeforeRun: false
 allowBuilds:
   electron: true
   node-pty: true

@@ -1,118 +1,89 @@
 # iCode
 
-iCode 是一个基于 Electron + React 的本地桌面工作台，用来在当前工作区里驱动 Codex CLI 完成编码任务。它提供任务会话、模型切换、审批确认、运行中断和本地状态持久化，界面通过 Codex 的真实事件流更新，不依赖模拟数据。
+iCode 是一个面向 Codex 的多端工作台。仓库采用 pnpm monorepo，同时提供 Electron
+桌面应用和 Web 应用；两端共享同一套 React 产品代码，仅在平台能力层区分本地 IPC
+与浏览器实现。
 
-## 特性
+## Workspace
 
-- 选择本地工作区，并在该目录内启动任务
-- 创建和管理多个任务会话
-- 在多个模型之间切换
-- 展示 Codex 的消息、活动和审批请求
-- 允许或拒绝命令执行、文件修改等操作
-- 中断正在运行的 turn
-- 自动保存会话、工作区和侧栏状态到本地
+```text
+apps/
+  desktop/          # Electron 主进程、preload、桌面渲染入口
+  web/              # Web 入口与浏览器平台适配器
+packages/
+  app/              # 两端共享的 React UI、状态、业务逻辑
+  platform/         # 跨端平台能力接口与协议类型
+scripts/
+  dev-config.mjs    # desktop/web 开发端口的唯一配置入口
+  run-app.mjs       # 根目录 app 命令调度器
+```
 
-## 技术栈
+`packages/app` 不直接依赖 Electron，也不访问 `window.icode`。它通过
+`PlatformProvider` 使用 `@icode/platform` 定义的能力，因此 desktop 和 web 不需要
+复制组件、状态或 Codex 事件处理逻辑。
 
-- Electron 40
-- React 19
-- Vite 8
-- Vite+
-- TypeScript 6
+## 开发
 
-## 运行前提
-
-- 已安装 `pnpm`
-- 已安装并登录 Codex CLI
-- 终端中可直接访问 `codex`，或者设置 `CODEX_CLI_PATH`
-
-Codex 可执行文件会按以下顺序查找：
-
-1. `CODEX_CLI_PATH`
-2. `/opt/homebrew/bin/codex`
-3. `/usr/local/bin/codex`
-4. `codex`
-
-## 安装
+安装依赖：
 
 ```bash
 pnpm install
 ```
 
-## 开发
-
-启动完整开发环境：
+启动桌面应用：
 
 ```bash
-pnpm run dev
+pnpm dev
+# 或 pnpm dev:desktop
 ```
 
-这个命令会先启动 Vite 开发服务，再拉起 Electron 窗口。
-
-如果你只想单独运行前端开发服务：
+启动 Web 应用：
 
 ```bash
-pnpm run dev:web
+pnpm dev:web
 ```
+
+默认端口：
+
+- desktop renderer: `5173`
+- web: `5174`
+
+可以通过 `ICODE_DESKTOP_PORT` 和 `ICODE_WEB_PORT` 覆盖。Electron 与 desktop Vite
+服务始终读取同一个 desktop 端口配置。
 
 ## 检查与构建
 
 ```bash
-pnpm run check
-pnpm run build
+pnpm check
+pnpm build
 ```
 
-- `check` 会运行项目检查
-- `build` 会先检查，再生成前端构建产物
-
-## 运行桌面应用
-
-构建完成后启动 Electron：
+也可以单独构建：
 
 ```bash
-pnpm run start
+pnpm build:desktop
+pnpm build:web
 ```
 
-## 使用方式
+构建产物分别位于 `apps/desktop/dist` 和 `apps/web/dist`。
 
-1. 启动应用后，先选择一个工作区目录
-2. 点击“新任务”创建会话
-3. 输入你希望 Codex 完成的工作
-4. 当 Codex 请求权限时，按需允许或拒绝
-5. 如果需要停止当前任务，点击停止按钮
+## 平台能力
 
-## 工作原理
+Desktop 通过 Electron preload 提供：
 
-iCode 的主进程会启动 `codex app-server --listen stdio://`，并通过 preload 暴露最小化的 IPC 接口给渲染进程。界面中的消息、活动、审批和错误状态都来自真实的 Codex 事件流。
+- Codex CLI app-server
+- 本地工作区选择与文件树
+- PTY 终端
+- Finder 与外部链接集成
 
-应用还会把会话状态、当前工作区、模型选择和侧栏状态保存在本地，重启后可以恢复最近的任务上下文。
+Web 已经复用完整应用 UI、会话状态和业务逻辑，并提供独立开发与生产构建。目前 Web
+平台适配器会明确显示“Codex 服务尚未配置”，本地文件树和终端入口也会隐藏。下一步只需
+为 `apps/web/src/platform.ts` 接入远程 Codex/WebSocket/HTTP 网关，无需重写共享 UI。
 
-## 配置说明
+## Desktop 前提
 
-### `CODEX_CLI_PATH`
+- 已安装并登录 Codex CLI
+- 终端中可访问 `codex`，或设置 `CODEX_CLI_PATH`
 
-可选。用于显式指定 Codex CLI 可执行文件路径。
-
-### `CODEX_SQLITE_HOME`
-
-由应用自动设置，用来存放 Codex 的本地状态数据，不需要手动配置。
-
-## 目录结构
-
-```text
-electron/
-  main.mjs      # Electron 主进程
-  preload.cjs   # 安全的渲染进程桥接
-scripts/
-  dev.mjs       # 同时启动 Vite 和 Electron
-src/
-  App.tsx       # 主界面
-  main.tsx      # React 入口
-  styles.css    # 样式
-```
-
-## 注意事项
-
-- 应用要求 Codex CLI 已完成登录和初始化
-- 如果 Codex 启动失败，先检查 CLI 是否可执行、是否在 PATH 中，以及当前账号是否已登录
-- 当前实现会把会话状态写入浏览器本地存储，适合单机本地使用
+Codex 可执行文件依次从 `CODEX_CLI_PATH`、Homebrew 常见路径、当前 `PATH` 和登录
+shell 中查找。

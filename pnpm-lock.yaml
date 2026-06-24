@@ -206,35 +206,7 @@ settings:
 importers:
 
   .:
-    dependencies:
-      '@xterm/addon-fit':
-        specifier: ^0.10.0
-        version: 0.10.0(@xterm/xterm@5.5.0)
-      '@xterm/xterm':
-        specifier: ^5.5.0
-        version: 5.5.0
-      lucide-react:
-        specifier: ^0.468.0
-        version: 0.468.0(react@19.2.4)
-      node-pty:
-        specifier: ^1.0.0
-        version: 1.1.0
-      react:
-        specifier: 19.2.4
-        version: 19.2.4
-      react-dom:
-        specifier: 19.2.4
-        version: 19.2.4(react@19.2.4)
-      react-markdown:
-        specifier: ^10.1.0
-        version: 10.1.0(@types/react@19.2.17)(react@19.2.4)
-      remark-gfm:
-        specifier: ^4.0.1
-        version: 4.0.1
     devDependencies:
-      '@electron/rebuild':
-        specifier: ^4.0.1
-        version: 4.0.4
       '@types/node':
         specifier: ^25.0.0
         version: 25.9.4
@@ -272,6 +244,104 @@ importers:
       '@voidzero-dev/vite-plus-darwin-arm64':
         specifier: 0.2.1
         version: 0.2.1
+
+  apps/desktop:
+    dependencies:
+      '@icode/app':
+        specifier: workspace:*
+        version: link:../../packages/app
+      '@icode/platform':
+        specifier: workspace:*
+        version: link:../../packages/platform
+      node-pty:
+        specifier: ^1.0.0
+        version: 1.1.0
+      react:
+        specifier: 19.2.4
+        version: 19.2.4
+      react-dom:
+        specifier: 19.2.4
+        version: 19.2.4(react@19.2.4)
+    devDependencies:
+      '@electron/rebuild':
+        specifier: ^4.0.1
+        version: 4.0.4
+      '@vitejs/plugin-react':
+        specifier: ^5.0.0
+        version: 5.2.0(vite@8.0.16(@types/node@25.9.4))
+      electron:
+        specifier: ^40.0.0
+        version: 40.10.4
+      vite:
+        specifier: ^8.0.0
+        version: 8.0.16(@types/node@25.9.4)
+      vite-plus:
+        specifier: ^0.2.1
+        version: 0.2.1(@types/node@25.9.4)(typescript@6.0.3)(vite@8.0.16(@types/node@25.9.4))
+
+  apps/web:
+    dependencies:
+      '@icode/app':
+        specifier: workspace:*
+        version: link:../../packages/app
+      '@icode/platform':
+        specifier: workspace:*
+        version: link:../../packages/platform
+      react:
+        specifier: 19.2.4
+        version: 19.2.4
+      react-dom:
+        specifier: 19.2.4
+        version: 19.2.4(react@19.2.4)
+    devDependencies:
+      '@vitejs/plugin-react':
+        specifier: ^5.0.0
+        version: 5.2.0(vite@8.0.16(@types/node@25.9.4))
+      vite:
+        specifier: ^8.0.0
+        version: 8.0.16(@types/node@25.9.4)
+      vite-plus:
+        specifier: ^0.2.1
+        version: 0.2.1(@types/node@25.9.4)(typescript@6.0.3)(vite@8.0.16(@types/node@25.9.4))
+
+  packages/app:
+    dependencies:
+      '@icode/platform':
+        specifier: workspace:*
+        version: link:../platform
+      '@xterm/addon-fit':
+        specifier: ^0.10.0
+        version: 0.10.0(@xterm/xterm@5.5.0)
+      '@xterm/xterm':
+        specifier: ^5.5.0
+        version: 5.5.0
+      lucide-react:
+        specifier: ^0.468.0
+        version: 0.468.0(react@19.2.4)
+      react:
+        specifier: 19.2.4
+        version: 19.2.4
+      react-dom:
+        specifier: 19.2.4
+        version: 19.2.4(react@19.2.4)
+      react-markdown:
+        specifier: ^10.1.0
+        version: 10.1.0(@types/react@19.2.17)(react@19.2.4)
+      remark-gfm:
+        specifier: ^4.0.1
+        version: 4.0.1
+    devDependencies:
+      '@types/react':
+        specifier: ^19.2.0
+        version: 19.2.17
+      '@types/react-dom':
+        specifier: ^19.2.0
+        version: 19.2.3(@types/react@19.2.17)
+      typescript:
+        specifier: ~6.0.2
+        version: 6.0.3
+
+  packages/platform: {}
 
 packages:
 

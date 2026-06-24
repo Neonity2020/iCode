@@ -4,6 +4,7 @@ import type { FileChange, RightSidebarTab, RightSidebarTabKind } from "../domain
 import { FileChangesPanel } from "./FileChangesPanel";
 import { FileTreeTab } from "./FileTreeTab";
 import { TerminalTab } from "./TerminalTab";
+import { usePlatform } from "../platform/PlatformContext";
 
 type RightSidebarProps = {
   tabs: RightSidebarTab[];
@@ -30,6 +31,7 @@ export function RightSidebar({
   onToggleFile,
   onToggleDirectory,
 }: RightSidebarProps) {
+  const platform = usePlatform();
   const [addMenuOpen, setAddMenuOpen] = useState(false);
   const addMenuRef = useRef<HTMLDivElement | null>(null);
   const activeTab = tabs.find((tab) => tab.id === activeTabId);
@@ -72,42 +74,48 @@ export function RightSidebar({
             </button>
           ))}
         </div>
-        <div className="tab-add-wrap" ref={addMenuRef}>
-          <button
-            className="tab-add"
-            type="button"
-            aria-label="新建侧边栏标签页"
-            title="新建侧边栏标签页"
-            aria-expanded={addMenuOpen}
-            onClick={() => setAddMenuOpen((open) => !open)}
-          >
-            <Plus size={13} />
-          </button>
-          {addMenuOpen && (
-            <div className="tab-add-menu" role="menu">
-              <button
-                role="menuitem"
-                type="button"
-                onClick={() => {
-                  onAddTab("tree");
-                  setAddMenuOpen(false);
-                }}
-              >
-                <FolderTree size={13} /> <span>文件树</span>
-              </button>
-              <button
-                role="menuitem"
-                type="button"
-                onClick={() => {
-                  onAddTab("terminal");
-                  setAddMenuOpen(false);
-                }}
-              >
-                <TerminalSquare size={13} /> <span>终端</span>
-              </button>
-            </div>
-          )}
-        </div>
+        {(platform.capabilities.fileSystem || platform.capabilities.terminal) && (
+          <div className="tab-add-wrap" ref={addMenuRef}>
+            <button
+              className="tab-add"
+              type="button"
+              aria-label="新建侧边栏标签页"
+              title="新建侧边栏标签页"
+              aria-expanded={addMenuOpen}
+              onClick={() => setAddMenuOpen((open) => !open)}
+            >
+              <Plus size={13} />
+            </button>
+            {addMenuOpen && (
+              <div className="tab-add-menu" role="menu">
+                {platform.capabilities.fileSystem && (
+                  <button
+                    role="menuitem"
+                    type="button"
+                    onClick={() => {
+                      onAddTab("tree");
+                      setAddMenuOpen(false);
+                    }}
+                  >
+                    <FolderTree size={13} /> <span>文件树</span>
+                  </button>
+                )}
+                {platform.capabilities.terminal && (
+                  <button
+                    role="menuitem"
+                    type="button"
+                    onClick={() => {
+                      onAddTab("terminal");
+                      setAddMenuOpen(false);
+                    }}
+                  >
+                    <TerminalSquare size={13} /> <span>终端</span>
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="tab-content">
