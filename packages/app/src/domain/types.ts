@@ -10,7 +10,7 @@ export type Approval = {
 
 export type ActiveTurn = { threadId: string; turnId: string };
 
-export type FileChangeKind = "add" | "modify" | "delete";
+export type FileChangeKind = "add" | "modify" | "delete" | "rename";
 
 export type FileChange = {
   id: string;
@@ -18,6 +18,9 @@ export type FileChange = {
   kind: FileChangeKind;
   diff: string;
   status: "inProgress" | "completed" | "failed";
+  previousPath?: string;
+  newPath?: string;
+  summary?: string;
 };
 
 export type Conversation = {

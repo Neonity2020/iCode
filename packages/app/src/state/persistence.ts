@@ -131,7 +131,8 @@ function normalizeConversation(raw: unknown): Conversation {
         const item = change as Record<string, unknown>;
         if (typeof item.id !== "string") return [];
         const rawKind = typeof item.kind === "string" ? item.kind : "modify";
-        const kind: FileChangeKind = rawKind === "add" || rawKind === "delete" ? rawKind : "modify";
+        const kind: FileChangeKind =
+          rawKind === "add" || rawKind === "delete" || rawKind === "rename" ? rawKind : "modify";
         const rawStatus = typeof item.status === "string" ? item.status : "completed";
         const status: FileChange["status"] =
           rawStatus === "inProgress" || rawStatus === "failed" ? rawStatus : "completed";
@@ -142,6 +143,9 @@ function normalizeConversation(raw: unknown): Conversation {
             kind,
             diff: typeof item.diff === "string" ? item.diff : "",
             status,
+            ...(typeof item.previousPath === "string" ? { previousPath: item.previousPath } : {}),
+            ...(typeof item.newPath === "string" ? { newPath: item.newPath } : {}),
+            ...(typeof item.summary === "string" ? { summary: item.summary } : {}),
           },
         ];
       })

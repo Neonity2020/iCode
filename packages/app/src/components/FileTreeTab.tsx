@@ -23,7 +23,7 @@ import {
   Zap,
 } from "lucide-react";
 import type { DirNode, RightSidebarTab } from "../domain/types";
-import { compactPath } from "../lib/paths";
+import { compactPath, getPathAncestors } from "../lib/paths";
 import { usePlatform } from "../platform/PlatformContext";
 
 type TreeState = {
@@ -187,10 +187,20 @@ function PnpmBadge() {
 type FileTreeTabProps = {
   tab: RightSidebarTab;
   expandedDirs: string[];
+  selectedPath: string | null;
+  selectedPathNonce: number;
+  onSelectPath: (path: string) => void;
   onToggleExpand: (path: string, open: boolean) => void;
 };
 
-export function FileTreeTab({ tab, expandedDirs, onToggleExpand }: FileTreeTabProps) {
+export function FileTreeTab({
+  tab,
+  expandedDirs,
+  selectedPath,
+  selectedPathNonce,
+  onSelectPath,
+  onToggleExpand,
+}: FileTreeTabProps) {
   const platform = usePlatform();
   const restoredExpanded = useMemo(() => new Set(expandedDirs), [expandedDirs]);
   const [state, setState] = useState<TreeState>({
@@ -204,6 +214,7 @@ export function FileTreeTab({ tab, expandedDirs, onToggleExpand }: FileTreeTabPr
   const [menu, setMenu] = useState<TreeMenuState | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const paneRef = useRef<HTMLDivElement | null>(null);
+  const nodeRefs = useRef(new Map<string, HTMLDivElement>());
 
   const reload = useCallback(() => {
     setState((current) => ({ ...current, loading: true, error: null }));
@@ -262,6 +273,53 @@ export function FileTreeTab({ tab, expandedDirs, onToggleExpand }: FileTreeTabPr
     menuRef.current.style.top = `${y}px`;
   }, [menu]);
 
+  const resolvedSelection = useMemo(() => {
+    if (!selectedPath) return null;
+
+    const normalizedTarget = normalizeTreePath(selectedPath);
+    let best: string | null = null;
+
+    const visit = (node: DirNode) => {
+      const normalizedNode = normalizeTreePath(node.path);
+      if (normalizedNode === normalizedTarget) {
+        best = node.path;
+        return;
+      }
+      if (!isPathPrefix(normalizedNode, normalizedTarget)) return;
+      if (!best || normalizeTreePath(node.path).length > normalizeTreePath(best).length) {
+        best = node.path;
+      }
+      node.children?.forEach(visit);
+    };
+
+    state.nodes.forEach(visit);
+    return best;
+  }, [selectedPath, state.nodes]);
+
+  useEffect(() => {
+    if (!resolvedSelection) return;
+    const ancestorPaths = getPathAncestors(resolvedSelection).slice(0, -1);
+    if (ancestorPaths.length === 0) return;
+    setState((current) => {
+      const expanded = new Set(current.expanded);
+      let changed = false;
+      for (const ancestorPath of ancestorPaths) {
+        if (!expanded.has(ancestorPath)) {
+          expanded.add(ancestorPath);
+          changed = true;
+        }
+      }
+      return changed ? { ...current, expanded } : current;
+    });
+  }, [resolvedSelection, selectedPathNonce]);
+
+  useLayoutEffect(() => {
+    if (!resolvedSelection || state.loading) return;
+    const node = nodeRefs.current.get(resolvedSelection);
+    if (!node) return;
+    node.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [resolvedSelection, selectedPathNonce, state.loading, state.nodes]);
+
   const toggle = useCallback(
     (path: string) => {
       const open = !state.expanded.has(path);
@@ -282,12 +340,24 @@ export function FileTreeTab({ tab, expandedDirs, onToggleExpand }: FileTreeTabPr
     setMenu({ path: node.path, x: event.clientX, y: event.clientY, kind: node.type });
   }, []);
 
+  const handleSelectPath = useCallback(
+    (path: string) => {
+      onSelectPath(path);
+    },
+    [onSelectPath],
+  );
+
   return (
     <div className="tree-pane" ref={paneRef}>
       <div className="tree-toolbar">
         <span className="tree-root" title={state.root}>
           {compactPath(state.root) || "/"}
         </span>
+        {resolvedSelection && (
+          <span className="tree-selection" title={resolvedSelection}>
+            {compactPath(resolvedSelection)}
+          </span>
+        )}
         <button className="icon-button" type="button" onClick={reload} aria-label="刷新">
           <RefreshCw size={13} />
         </button>
@@ -301,9 +371,15 @@ export function FileTreeTab({ tab, expandedDirs, onToggleExpand }: FileTreeTabPr
               key={node.path}
               node={node}
               expanded={state.expanded}
+              selectedPath={resolvedSelection}
               depth={0}
               onToggle={toggle}
+              onSelect={handleSelectPath}
               onContextMenu={openContextMenu}
+              registerNodeRef={(path, element) => {
+                if (element) nodeRefs.current.set(path, element);
+                else nodeRefs.current.delete(path);
+              }}
             />
           ))}
         </div>
@@ -332,21 +408,44 @@ export function FileTreeTab({ tab, expandedDirs, onToggleExpand }: FileTreeTabPr
 type TreeNodeProps = {
   node: DirNode;
   expanded: Set<string>;
+  selectedPath: string | null;
   depth: number;
   onToggle: (path: string) => void;
+  onSelect: (path: string) => void;
   onContextMenu: (event: ReactMouseEvent, node: DirNode) => void;
+  registerNodeRef: (path: string, element: HTMLDivElement | null) => void;
 };
 
-function TreeNode({ node, expanded, depth, onToggle, onContextMenu }: TreeNodeProps) {
+function TreeNode({
+  node,
+  expanded,
+  selectedPath,
+  depth,
+  onToggle,
+  onSelect,
+  onContextMenu,
+  registerNodeRef,
+}: TreeNodeProps) {
   const open = expanded.has(node.path);
+  const selected = selectedPath ? isSameTreePath(selectedPath, node.path) : false;
   if (node.type === "file") {
     const badge = getTreeFileBadge(node.name);
     return (
       <div
-        className="tree-node tree-file"
+        ref={(element) => registerNodeRef(node.path, element)}
+        className={`tree-node tree-file ${selected ? "selected" : ""}`}
         style={{ paddingLeft: `${depth * 14}px` }}
+        onClick={() => onSelect(node.path)}
         onContextMenu={(event) => onContextMenu(event, node)}
         title={node.path}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            onSelect(node.path);
+          }
+        }}
       >
         <span className={`tree-file-badge tree-file-badge-${badge.tone}`} aria-hidden="true">
           {badge.label ? (
@@ -362,15 +461,28 @@ function TreeNode({ node, expanded, depth, onToggle, onContextMenu }: TreeNodePr
   return (
     <>
       <div
-        className="tree-node tree-dir"
+        ref={(element) => registerNodeRef(node.path, element)}
+        className={`tree-node tree-dir ${selected ? "selected" : ""}`}
         style={{ paddingLeft: `${depth * 14}px` }}
+        onClick={() => onSelect(node.path)}
         onContextMenu={(event) => onContextMenu(event, node)}
         title={node.path}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            onSelect(node.path);
+          }
+        }}
       >
         <button
           type="button"
           className="tree-toggle"
-          onClick={() => onToggle(node.path)}
+          onClick={(event) => {
+            event.stopPropagation();
+            onToggle(node.path);
+          }}
           aria-expanded={open}
         >
           <ChevronRight size={11} className={`tree-chevron ${open ? "open" : ""}`} />
@@ -383,11 +495,33 @@ function TreeNode({ node, expanded, depth, onToggle, onContextMenu }: TreeNodePr
             key={child.path}
             node={child}
             expanded={expanded}
+            selectedPath={selectedPath}
             depth={depth + 1}
             onToggle={onToggle}
+            onSelect={onSelect}
             onContextMenu={onContextMenu}
+            registerNodeRef={registerNodeRef}
           />
         ))}
     </>
+  );
+}
+
+function normalizeTreePath(value: string) {
+  return value.replaceAll("\\", "/").replace(/\/+$/, "") || "/";
+}
+
+function isSameTreePath(a: string, b: string) {
+  return normalizeTreePath(a) === normalizeTreePath(b);
+}
+
+function isPathPrefix(parent: string, child: string) {
+  const normalizedParent = normalizeTreePath(parent);
+  const normalizedChild = normalizeTreePath(child);
+  return (
+    normalizedParent === normalizedChild ||
+    normalizedChild.startsWith(
+      normalizedParent === "/" ? "/" : `${normalizedParent.replace(/\/+$/, "")}/`,
+    )
   );
 }

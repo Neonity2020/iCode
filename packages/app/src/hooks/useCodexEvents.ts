@@ -3,11 +3,11 @@ import type {
   Approval,
   CodexItem,
   FileChange,
-  FileChangeKind,
   RuntimeStatus,
   StoredState,
 } from "../domain/types";
 import { describeItem } from "../lib/codex";
+import { normalizeFileChangeEntries } from "../lib/fileChanges";
 import { usePlatform } from "../platform/PlatformContext";
 import { resetSessionForNewLaunch } from "../state/persistence";
 
@@ -219,38 +219,34 @@ export function useCodexEvents({ appState, setAppState, setRuntime }: UseCodexEv
         }
 
         if (item.type === "fileChange") {
-          const rawChanges =
-            item.changes && typeof item.changes === "object"
-              ? (item.changes as Record<string, unknown>)
-              : {};
-          const kindRaw = typeof rawChanges.kind === "string" ? rawChanges.kind : "modify";
-          const kind: FileChangeKind =
-            kindRaw === "add" || kindRaw === "delete" ? kindRaw : "modify";
-          const statusRaw = String(item.status ?? "completed");
           const status: FileChange["status"] =
             event.method === "item/completed"
-              ? statusRaw === "failed"
+              ? String(item.status ?? "completed") === "failed"
                 ? "failed"
                 : "completed"
               : "inProgress";
-          const entry: FileChange = {
-            id: String(item.id),
-            path: typeof rawChanges.path === "string" ? rawChanges.path : "",
-            kind,
-            diff: typeof rawChanges.diff === "string" ? rawChanges.diff : "",
-            status,
-          };
+          const entries = normalizeFileChangeEntries(item, status);
+          if (entries.length === 0) return;
+          const baseId = String(item.id);
+          const entryIds = new Set(entries.map((entry) => entry.id));
           setAppState((current) => ({
             ...current,
             sessions: current.sessions.map((session) => {
               if (session.id !== sessionId) return session;
-              const fileChanges = session.conversation.fileChanges.some(
-                (change) => change.id === item.id,
-              )
-                ? session.conversation.fileChanges.map((change) =>
-                    change.id === item.id ? entry : change,
+              const nextById = new Map(
+                session.conversation.fileChanges
+                  .filter(
+                    (change) =>
+                      !(
+                        change.id === baseId ||
+                        change.id.startsWith(`${baseId}:`) ||
+                        entryIds.has(change.id)
+                      ),
                   )
-                : [...session.conversation.fileChanges, entry];
+                  .map((change) => [change.id, change]),
+              );
+              for (const entry of entries) nextById.set(entry.id, entry);
+              const fileChanges = [...nextById.values()];
               return { ...session, conversation: { ...session.conversation, fileChanges } };
             }),
           }));

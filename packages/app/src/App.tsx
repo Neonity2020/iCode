@@ -15,6 +15,7 @@ import { disposeTerminalTab } from "./components/TerminalTab";
 import { Topbar } from "./components/Topbar";
 import type {
   Approval,
+  FileChange,
   RightSidebarTab,
   RightSidebarTabKind,
   RuntimeStatus,
@@ -25,6 +26,7 @@ import { useCodexEvents } from "./hooks/useCodexEvents";
 import { usePanelResize } from "./hooks/usePanelResize";
 import { usePlatform } from "./platform/PlatformContext";
 import { buildSession, loadStoredState, persistState } from "./state/persistence";
+import { getFileChangeTargetPath } from "./lib/fileChanges";
 
 export function App() {
   const platform = usePlatform();
@@ -46,6 +48,7 @@ export function App() {
   const [expandedActivityBundles, setExpandedActivityBundles] = useState<Record<number, boolean>>(
     {},
   );
+  const [treeSelection, setTreeSelection] = useState<{ path: string; nonce: number } | null>(null);
   // Persisted expanded directories across all file-tree tabs. A single global
   // set is fine: entries are absolute paths, and restoring a tab simply reopens
   // whichever of these paths still exist beneath its root.
@@ -75,6 +78,8 @@ export function App() {
   const selectedModel = appState.selectedModel;
   const activityBundleExpanded =
     expandedActivityBundles[currentSession?.id ?? -1] ?? activities.length <= 2;
+  const selectedTreePath = treeSelection?.path ?? null;
+  const selectedTreePathNonce = treeSelection?.nonce ?? 0;
   const handleWidthsChange = useCallback((leftWidth: number, rightWidth: number) => {
     setAppState((current) =>
       current.sidebarWidth === leftWidth && current.rightSidebarWidth === rightWidth
@@ -145,6 +150,45 @@ export function App() {
       else set.delete(path);
       return [...set];
     });
+  }, []);
+
+  const openOrSelectTreeTab = useCallback(() => {
+    if (!platform.capabilities.fileSystem) return null;
+    const targetCwd = workspacePath || undefined;
+    const currentTabs = tabsRef.current;
+    const preferredTreeTab =
+      currentTabs.find(
+        (tab) => tab.id === activeTabId && tab.kind === "tree" && tab.cwd === targetCwd,
+      ) ??
+      currentTabs.find((tab) => tab.kind === "tree" && tab.cwd === targetCwd) ??
+      currentTabs.find((tab) => tab.kind === "tree");
+    if (preferredTreeTab) {
+      setActiveTabId(preferredTreeTab.id);
+      return preferredTreeTab.id;
+    }
+
+    const id = `tree-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    setTabs((current) => [
+      ...current,
+      { id, kind: "tree", title: "文件树", cwd: targetCwd },
+    ]);
+    setActiveTabId(id);
+    return id;
+  }, [activeTabId, platform.capabilities.fileSystem, workspacePath]);
+
+  const handleLocateFile = useCallback(
+    (change: FileChange) => {
+      const path = getFileChangeTargetPath(change);
+      if (!path) return;
+      const treeTabId = openOrSelectTreeTab();
+      if (!treeTabId) return;
+      setTreeSelection({ path, nonce: Date.now() });
+    },
+    [openOrSelectTreeTab],
+  );
+
+  const handleSelectTreePath = useCallback((path: string) => {
+    setTreeSelection({ path, nonce: Date.now() });
   }, []);
 
   async function chooseWorkspace() {
@@ -426,12 +470,16 @@ export function App() {
             fileChanges={fileChanges}
             expandedFiles={expandedFiles}
             expandedDirs={expandedDirs}
+            selectedTreePath={selectedTreePath}
+            selectedTreePathNonce={selectedTreePathNonce}
             onSelectTab={setActiveTabId}
             onAddTab={addTab}
             onCloseTab={closeTab}
             onToggleFile={(id) =>
               setExpandedFiles((current) => ({ ...current, [id]: !current[id] }))
             }
+            onLocateFile={platform.capabilities.fileSystem ? handleLocateFile : undefined}
+            onSelectTreePath={handleSelectTreePath}
             onToggleDirectory={handleToggleExpand}
           />
         </>

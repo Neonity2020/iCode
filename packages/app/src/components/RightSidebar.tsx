@@ -12,10 +12,14 @@ type RightSidebarProps = {
   fileChanges: FileChange[];
   expandedFiles: Record<string, boolean>;
   expandedDirs: string[];
+  selectedTreePath: string | null;
+  selectedTreePathNonce: number;
   onSelectTab: (id: string) => void;
   onAddTab: (kind: RightSidebarTabKind) => void;
   onCloseTab: (id: string) => void;
   onToggleFile: (id: string) => void;
+  onLocateFile?: (change: FileChange) => void;
+  onSelectTreePath: (path: string) => void;
   onToggleDirectory: (path: string, open: boolean) => void;
 };
 
@@ -25,10 +29,14 @@ export function RightSidebar({
   fileChanges,
   expandedFiles,
   expandedDirs,
+  selectedTreePath,
+  selectedTreePathNonce,
   onSelectTab,
   onAddTab,
   onCloseTab,
   onToggleFile,
+  onLocateFile,
+  onSelectTreePath,
   onToggleDirectory,
 }: RightSidebarProps) {
   const platform = usePlatform();
@@ -132,6 +140,7 @@ export function RightSidebar({
                 changes={fileChanges}
                 expanded={expandedFiles}
                 onToggle={onToggleFile}
+                onLocate={onLocateFile}
               />
             </div>
           </>
@@ -141,6 +150,9 @@ export function RightSidebar({
           <FileTreeTab
             tab={activeTab}
             expandedDirs={expandedDirs}
+            selectedPath={selectedTreePath}
+            selectedPathNonce={selectedTreePathNonce}
+            onSelectPath={onSelectTreePath}
             onToggleExpand={onToggleDirectory}
           />
         )}

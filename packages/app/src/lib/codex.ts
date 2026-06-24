@@ -1,4 +1,5 @@
 import type { Activity, Approval, CodexItem } from "../domain/types";
+import { describeFileChangeItem } from "./fileChanges";
 
 export function stringifyDetail(value: unknown): string {
   if (typeof value === "string") return value;
@@ -12,7 +13,10 @@ export function describeItem(item: CodexItem): Omit<Activity, "id" | "status"> {
     case "commandExecution":
       return { title: "运行命令", detail: stringifyDetail(item.command) };
     case "fileChange":
-      return { title: "修改文件", detail: stringifyDetail(item.changes) };
+      return {
+        title: "修改文件",
+        detail: describeFileChangeItem(item) || stringifyDetail(item.changes),
+      };
     case "mcpToolCall":
       return { title: `调用 ${String(item.server ?? "MCP")}`, detail: String(item.tool ?? "工具") };
     case "dynamicToolCall":
