@@ -368,7 +368,7 @@ export function App() {
           messages={messages}
           activities={activities}
           approvals={approvals}
-          error={currentSession?.conversation.error ?? error}
+          error={currentSession?.conversation.error ?? error ?? runtime.error}
           activityBundleExpanded={activityBundleExpanded}
           expandedActivityIds={expandedActivityIds}
           onToggleActivityBundle={() =>

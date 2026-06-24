@@ -1,11 +1,19 @@
 import { spawn } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { getDevPort, getDevServerUrl } from "./dev-config.mjs";
 
 const projectDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const vitePlusCli = path.join(projectDirectory, "node_modules", "vite-plus", "bin", "vp");
 const electronCli = path.join(projectDirectory, "node_modules", "electron", "cli.js");
 const children = new Set();
+const devPort = getDevPort();
+const devServerUrl = getDevServerUrl();
+const devEnv = {
+  ...process.env,
+  VITE_DEV_PORT: String(devPort),
+  VITE_DEV_SERVER_URL: devServerUrl,
+};
 
 function run(entry, args, env = process.env) {
   const child = spawn(process.execPath, [entry, ...args], {
@@ -42,9 +50,6 @@ async function waitForServer(url) {
 process.on("SIGINT", () => stop());
 process.on("SIGTERM", () => stop());
 
-run(vitePlusCli, ["dev"]);
-await waitForServer("http://127.0.0.1:5173");
-run(electronCli, ["."], {
-  ...process.env,
-  VITE_DEV_SERVER_URL: "http://127.0.0.1:5173",
-});
+run(vitePlusCli, ["dev"], devEnv);
+await waitForServer(devServerUrl);
+run(electronCli, ["."], devEnv);

@@ -36,13 +36,16 @@ export function ConversationView({
     <section className="conversation" ref={containerRef}>
       <div className="message-column">
         {empty ? (
-          <div className="empty-state">
-            <span>
-              <Sparkles size={21} />
-            </span>
-            <h1>让 Codex 处理一个任务</h1>
-            <p>Codex CLI 将在当前工作区真实读取、运行和修改文件。</p>
-          </div>
+          <>
+            <div className="empty-state">
+              <span>
+                <Sparkles size={21} />
+              </span>
+              <h1>让 Codex 处理一个任务</h1>
+              <p>Codex CLI 将在当前工作区真实读取、运行和修改文件。</p>
+            </div>
+            {error && <div className="error-card">{error}</div>}
+          </>
         ) : (
           <>
             {messages.map((message) => (

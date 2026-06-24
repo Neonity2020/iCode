@@ -309,29 +309,55 @@ kbd {
   background: #fbfbf9;
 }
 .topbar {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   min-width: 0;
-  padding: 0 17px;
+  min-height: 54px;
+  padding: 10px 18px 10px 22px;
   border-bottom: 1px solid var(--border);
   -webkit-app-region: drag;
+}
+.topbar-sidebar-collapsed {
+  padding-left: 136px;
+}
+.topbar-sidebar-toggle {
+  position: absolute;
+  left: 92px;
+  top: 10px;
+  z-index: 3;
+  width: 34px;
+  height: 34px;
+  border: 1px solid #d8d8d3;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 78%);
+  box-shadow: 0 8px 24px rgb(30 30 28 / 10%);
+  backdrop-filter: blur(8px);
 }
 .topbar button {
   -webkit-app-region: no-drag;
 }
+@media (max-width: 920px) {
+  .topbar-sidebar-collapsed {
+    padding-left: 116px;
+  }
+  .topbar-sidebar-toggle {
+    left: 76px;
+  }
+}
 .workspace-link {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  max-width: 360px;
-  padding: 2px 7px;
+  gap: 5px;
+  max-width: min(480px, 100%);
+  padding: 3px 8px;
   border: 0;
-  border-radius: 6px;
+  border-radius: 8px;
   background: transparent;
   color: #8a8a85;
   font: inherit;
-  font-size: 11px;
+  font-size: 11.5px;
   cursor: pointer;
   transition:
     background 0.12s ease,
@@ -352,15 +378,16 @@ kbd {
 }
 .title-block {
   display: flex;
+  flex-direction: column;
+  align-items: flex-start;
   min-width: 0;
   flex: 1;
-  align-items: center;
-  gap: 10px;
+  gap: 4px;
 }
 .title-block strong {
   overflow: hidden;
-  font-size: 13px;
-  font-weight: 500;
+  font-size: 14px;
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -374,16 +401,17 @@ kbd {
 .topbar-actions {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  margin-left: auto;
 }
 .status-pill {
   display: flex;
   align-items: center;
-  gap: 5px;
-  height: 28px;
-  padding: 0 9px;
+  gap: 6px;
+  height: 30px;
+  padding: 0 11px;
   border: 1px solid #dfdfdb;
-  border-radius: 7px;
+  border-radius: 9px;
   background: #f7f7f4;
   color: #696965;
   font-size: 11px;
@@ -1232,8 +1260,8 @@ kbd {
 }
 .topbar-badge {
   position: absolute;
-  top: 2px;
-  right: 2px;
+  top: 1px;
+  right: 1px;
   min-width: 14px;
   height: 14px;
   padding: 0 3px;
@@ -1450,7 +1478,7 @@ kbd {
 .tree-toggle {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 10px;
   width: 100%;
   min-width: 0;
   border: 0;
@@ -1468,97 +1496,82 @@ kbd {
 .tree-chevron.open {
   transform: rotate(90deg);
 }
-.tree-folder-badge {
-  display: grid;
-  place-items: center;
-  width: 18px;
-  height: 18px;
-  flex: none;
-  border-radius: 5px;
-  color: #8a6c12;
-  background: #f0d88d;
-}
 .tree-file-badge {
-  display: inline-grid;
-  place-items: center;
-  width: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
   height: 18px;
   flex: none;
-  border-radius: 5px;
-  font-size: 8px;
+  border-radius: 0;
+  background: transparent;
+  color: #6f6d66;
+}
+.tree-file-badge svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+.tree-file-badge-react {
+  width: 18px;
+  height: 18px;
+  color: #29abe2;
+}
+.tree-file-badge-wordmark {
+  display: inline-block;
+  min-width: 18px;
+  padding: 0 3px;
+  border-radius: 6px;
+  font-size: 10px;
+  line-height: 18px;
   font-weight: 700;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.01em;
   text-transform: uppercase;
-  color: #6f5b17;
-  background: #efd87f;
+  text-align: center;
 }
-.tree-file-badge-js {
-  color: #6e5500;
-  background: #efcf68;
+.tree-file-badge-ts .tree-file-badge-wordmark {
+  color: #2f71f2;
+  background: #d9e8ff;
 }
-.tree-file-badge-css {
-  color: #6246ba;
-  background: #d9d0ff;
-}
-.tree-file-badge-markup {
-  color: #c65d14;
-  background: #ffd5b0;
+.tree-file-badge-css .tree-file-badge-wordmark {
+  color: #8c5cf6;
+  background: #e6dcff;
 }
 .tree-file-badge-json {
-  color: #be6217;
-  background: #ffd1a2;
+  color: #ef7d16;
 }
 .tree-file-badge-markdown {
-  color: #257a37;
-  background: #ccefd5;
+  color: #1ea34a;
+}
+.tree-file-badge-html {
+  color: #ef7d16;
+}
+.tree-file-badge-pnpm {
+  color: #ef4444;
+}
+.tree-file-badge-bun {
+  color: #534a58;
+}
+.tree-file-badge-vite {
+  color: #a64ce6;
 }
 .tree-file-badge-lock {
-  color: #a54242;
-  background: #ffd2cf;
+  color: #8f5a63;
+}
+.tree-file-badge-image {
+  color: #8f5a63;
+}
+.tree-file-badge-archive {
+  color: #bf7a20;
+}
+.tree-file-badge-config {
+  color: #7d5fd6;
+}
+.tree-file-badge-terminal {
+  color: #2d2f33;
 }
 .tree-file-badge-generic {
-  color: #6b6a64;
-  background: #ecebe8;
-}
-.tree-folder-badge-default {
-  color: #805f15;
-  background: #efdc95;
-}
-.tree-folder-badge-project {
-  color: #3863d6;
-  background: #d7e2ff;
-}
-.tree-folder-badge-resources {
-  color: #2f8c57;
-  background: #d6efd9;
-}
-.tree-folder-badge-settings {
-  color: #7861cf;
-  background: #e1d8ff;
-}
-.tree-folder-badge-test {
-  color: #2f8cb1;
-  background: #d4eef8;
-}
-.tree-folder-badge-git {
-  color: #d96c26;
-  background: #ffe0c6;
-}
-.tree-folder-badge-docs {
-  color: #2f79c6;
-  background: #d9ebff;
-}
-.tree-folder-badge-run {
-  color: #b57a12;
-  background: #f6e0a7;
-}
-.tree-folder-badge-server {
-  color: #bf4d4d;
-  background: #ffd9d9;
-}
-.tree-folder-badge-idea {
-  color: #8a57c2;
-  background: #ebdcff;
+  color: #4f4f4c;
 }
 .tree-name {
   overflow: hidden;

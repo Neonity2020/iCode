@@ -25,9 +25,14 @@ export function Topbar({
   onToggleRightSidebar,
 }: TopbarProps) {
   return (
-    <header className="topbar">
+    <header className={`topbar ${sidebarOpen ? "" : "topbar-sidebar-collapsed"}`}>
       {!sidebarOpen && (
-        <button className="icon-button" type="button" aria-label="展开侧栏" onClick={onOpenSidebar}>
+        <button
+          className="icon-button topbar-sidebar-toggle"
+          type="button"
+          aria-label="展开侧栏"
+          onClick={onOpenSidebar}
+        >
           <PanelLeft size={17} />
         </button>
       )}

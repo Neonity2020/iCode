@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { accessSync, constants } from "node:fs";
 import path from "node:path";
@@ -18,7 +18,6 @@ function findCodexExecutable() {
     process.env.CODEX_CLI_PATH,
     "/opt/homebrew/bin/codex",
     "/usr/local/bin/codex",
-    "codex",
   ].filter(Boolean);
 
   for (const candidate of candidates) {
@@ -30,7 +29,36 @@ function findCodexExecutable() {
       // Keep looking for an executable Codex installation.
     }
   }
-  return "codex";
+
+  const pathEntries = (process.env.PATH ?? "").split(path.delimiter).filter(Boolean);
+  for (const entry of pathEntries) {
+    const candidate = path.join(entry, "codex");
+    try {
+      accessSync(candidate, constants.X_OK);
+      return candidate;
+    } catch {
+      // Continue searching PATH entries.
+    }
+  }
+
+  const shells = [process.env.SHELL, "/bin/zsh", "/bin/bash"].filter(Boolean);
+  for (const shellPath of shells) {
+    const result = spawnSync(shellPath, ["-lc", "command -v codex"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    const candidate = result.stdout?.trim();
+    if (!result.error && result.status === 0 && candidate) {
+      try {
+        accessSync(candidate, constants.X_OK);
+        return candidate;
+      } catch {
+        // Ignore non-executable results and continue searching.
+      }
+    }
+  }
+
+  return null;
 }
 
 class CodexAppServer {
@@ -57,6 +85,14 @@ class CodexAppServer {
     if (this.ready) return this.ready;
     this.ready = new Promise((resolve, reject) => {
       const executable = findCodexExecutable();
+      if (!executable) {
+        const message =
+          "找不到 Codex CLI。请安装 Codex CLI，或把可执行文件路径设置到 CODEX_CLI_PATH。";
+        this.setStatus("error", { error: message });
+        this.ready = null;
+        reject(new Error(message));
+        return;
+      }
       const child = spawn(executable, ["app-server", "--listen", "stdio://"], {
         cwd: selectedWorkspace,
         env: {
