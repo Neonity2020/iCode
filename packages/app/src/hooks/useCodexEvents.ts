@@ -166,6 +166,37 @@ export function useCodexEvents({ appState, setAppState, setRuntime }: UseCodexEv
 
       const sessionId = runningTurnRef.current?.sessionId ?? getTargetSessionId();
 
+      const rawFileChanges = (
+        changes: unknown,
+      ): Array<{
+        path: string;
+        diff: string;
+        kind: FileChangeKind;
+      }> => {
+        if (!Array.isArray(changes)) return [];
+        return changes.flatMap((change) => {
+          if (!change || typeof change !== "object") return [];
+          const itemChange = change as Record<string, unknown>;
+          const rawKind = itemChange.kind as { type?: unknown; move_path?: unknown } | undefined;
+          const kindType = typeof rawKind?.type === "string" ? rawKind.type : "modify";
+          const kind: FileChangeKind =
+            kindType === "add" || kindType === "delete" ? kindType : "modify";
+          const path =
+            typeof itemChange.path === "string" && itemChange.path
+              ? itemChange.path
+              : kindType === "update" && typeof rawKind?.move_path === "string" && rawKind.move_path
+                ? rawKind.move_path
+                : "";
+          return [
+            {
+              path,
+              diff: typeof itemChange.diff === "string" ? itemChange.diff : "",
+              kind,
+            },
+          ];
+        });
+      };
+
       if (event.method === "item/agentMessage/delta") {
         const itemId = String(params.itemId);
         const delta = String(params.delta ?? "");
@@ -219,13 +250,19 @@ export function useCodexEvents({ appState, setAppState, setRuntime }: UseCodexEv
         }
 
         if (item.type === "fileChange") {
-          const rawChanges =
-            item.changes && typeof item.changes === "object"
-              ? (item.changes as Record<string, unknown>)
-              : {};
-          const kindRaw = typeof rawChanges.kind === "string" ? rawChanges.kind : "modify";
-          const kind: FileChangeKind =
-            kindRaw === "add" || kindRaw === "delete" ? kindRaw : "modify";
+          const changes = rawFileChanges(item.changes);
+          const path = changes
+            .map((change) => change.path)
+            .filter(Boolean)
+            .filter((value, index, array) => array.indexOf(value) === index);
+          const diff = changes
+            .map((change) => change.diff)
+            .filter(Boolean)
+            .join("\n\n");
+          const kind =
+            changes.find((change) => change.kind === "add")?.kind ??
+            changes.find((change) => change.kind === "delete")?.kind ??
+            "modify";
           const statusRaw = String(item.status ?? "completed");
           const status: FileChange["status"] =
             event.method === "item/completed"
@@ -235,9 +272,9 @@ export function useCodexEvents({ appState, setAppState, setRuntime }: UseCodexEv
               : "inProgress";
           const entry: FileChange = {
             id: String(item.id),
-            path: typeof rawChanges.path === "string" ? rawChanges.path : "",
+            path: path.length === 0 ? "" : path.length === 1 ? path[0] : path.join(" · "),
             kind,
-            diff: typeof rawChanges.diff === "string" ? rawChanges.diff : "",
+            diff,
             status,
           };
           setAppState((current) => ({
