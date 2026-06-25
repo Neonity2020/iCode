@@ -16,6 +16,7 @@ import { disposeTerminalTab } from "./components/TerminalTab";
 import { Topbar } from "./components/Topbar";
 import type {
   Approval,
+  FileChange,
   RightSidebarTab,
   RightSidebarTabKind,
   RuntimeStatus,
@@ -25,7 +26,7 @@ import type {
 import { useCodexEvents } from "./hooks/useCodexEvents";
 import { usePanelResize } from "./hooks/usePanelResize";
 import { usePlatform } from "./platform/PlatformContext";
-import type { UserInput } from "@icode/platform";
+import type { UserInput, WorkspaceChange } from "@icode/platform";
 import { buildSession, loadStoredState, persistState } from "./state/persistence";
 
 function createAttachmentId() {
@@ -74,6 +75,7 @@ export function App() {
   const [expandedActivityBundles, setExpandedActivityBundles] = useState<Record<number, boolean>>(
     {},
   );
+  const [workspaceChanges, setWorkspaceChanges] = useState<WorkspaceChange[]>([]);
   // Persisted expanded directories across all file-tree tabs. A single global
   // set is fine: entries are absolute paths, and restoring a tab simply reopens
   // whichever of these paths still exist beneath its root.
@@ -91,7 +93,22 @@ export function App() {
   const messages = currentSession?.conversation.messages ?? [];
   const activities = currentSession?.conversation.activities ?? [];
   const approvals = currentSession?.conversation.approvals ?? [];
-  const fileChanges = currentSession?.conversation.fileChanges ?? [];
+  const sessionFileChanges = currentSession?.conversation.fileChanges ?? [];
+  const fileChanges = useMemo(() => {
+    const byPath = new Map<string, FileChange>();
+    for (const change of workspaceChanges) {
+      if (!change.path) continue;
+      byPath.set(change.path, {
+        ...change,
+        id: `workspace:${change.path}`,
+      });
+    }
+    for (const change of sessionFileChanges) {
+      if (!change.path) continue;
+      byPath.set(change.path, change);
+    }
+    return [...byPath.values()];
+  }, [sessionFileChanges, workspaceChanges]);
   const activeTurnSession = appState.sessions.find((session) => session.conversation.activeTurn);
   const activeTurn = activeTurnSession?.conversation.activeTurn ?? null;
   const currentSessionActiveTurn = currentSession?.conversation.activeTurn ?? null;
@@ -127,6 +144,30 @@ export function App() {
     const element = conversationRef.current;
     if (element) element.scrollTop = element.scrollHeight;
   }, [messages, activities, approvals, error]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const refreshWorkspaceChanges = async () => {
+      if (!platform.capabilities.localWorkspace) {
+        setWorkspaceChanges([]);
+        return;
+      }
+      try {
+        const changes = await platform.getWorkspaceChanges();
+        if (!cancelled) setWorkspaceChanges(changes);
+      } catch {
+        if (!cancelled) setWorkspaceChanges([]);
+      }
+    };
+    void refreshWorkspaceChanges();
+    const interval = window.setInterval(() => {
+      void refreshWorkspaceChanges();
+    }, 10_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [platform, workspacePath]);
 
   useEffect(() => {
     const handle = window.setTimeout(() => {

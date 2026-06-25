@@ -46,6 +46,13 @@ export type FileSystemNode = {
   children?: FileSystemNode[];
 };
 
+export type WorkspaceChange = {
+  path: string;
+  kind: "add" | "modify" | "delete";
+  diff: string;
+  status: "inProgress" | "completed" | "failed";
+};
+
 export type PlatformCapabilities = {
   localWorkspace: boolean;
   fileSystem: boolean;
@@ -90,4 +97,5 @@ export type ICodePlatformApi = {
     truncated: boolean;
     children: FileSystemNode[];
   }>;
+  getWorkspaceChanges: () => Promise<WorkspaceChange[]>;
 };

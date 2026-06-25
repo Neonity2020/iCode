@@ -35,5 +35,6 @@ contextBridge.exposeInMainWorld("icode", {
     return () => ipcRenderer.removeListener("icode:pty-exit", handler);
   },
   listFs: (payload) => ipcRenderer.invoke("icode:fs-list", payload),
+  getWorkspaceChanges: () => ipcRenderer.invoke("icode:get-workspace-changes"),
   platform: process.platform,
 });

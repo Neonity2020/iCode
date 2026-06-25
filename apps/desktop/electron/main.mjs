@@ -69,6 +69,59 @@ function findCodexExecutable() {
   return null;
 }
 
+function runGit(args) {
+  const result = spawnSync("git", ["-C", selectedWorkspace, ...args], {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  if (result.status !== 0) return null;
+  return result.stdout ?? "";
+}
+
+function parseGitStatusLine(line) {
+  const code = line.slice(0, 2);
+  const rawPath = line.slice(3);
+  const pathParts = rawPath.split(" -> ");
+  const path = pathParts[pathParts.length - 1] ?? "";
+  const statusCode = code.trim();
+  const kind = statusCode.includes("D")
+    ? "delete"
+    : statusCode.includes("A") || statusCode === "??"
+      ? "add"
+      : "modify";
+  return { path, kind };
+}
+
+function diffForPath(filePath, kind) {
+  const args =
+    kind === "add"
+      ? ["diff", "--no-ext-diff", "--no-color", "--unified=20", "--", "/dev/null", filePath]
+      : kind === "delete"
+        ? ["diff", "--no-ext-diff", "--no-color", "--unified=20", "--", filePath, "/dev/null"]
+        : ["diff", "--no-ext-diff", "--no-color", "--unified=20", "--", filePath];
+  const output = runGit(args);
+  return output ?? "";
+}
+
+function readWorkspaceChanges() {
+  const statusOutput = runGit(["status", "--porcelain=v1"]);
+  if (statusOutput === null) return [];
+  const lines = statusOutput
+    .split("\n")
+    .map((line) => line.trimEnd())
+    .filter(Boolean);
+  return lines.map((line, index) => {
+    const { path: filePath, kind } = parseGitStatusLine(line);
+    return {
+      path: filePath,
+      kind,
+      diff: diffForPath(filePath, kind),
+      status: "completed",
+      id: `workspace:${index}:${filePath}`,
+    };
+  });
+}
+
 class CodexAppServer {
   constructor() {
     this.process = null;
@@ -438,6 +491,8 @@ ipcMain.handle("icode:fs-list", async (_event, { path: root, depth } = {}) => {
   const tree = await walk(start, 0);
   return { root: start, truncated: stopped.value, children: tree ?? [] };
 });
+
+ipcMain.handle("icode:get-workspace-changes", () => readWorkspaceChanges());
 
 app.whenReady().then(() => {
   createWindow();

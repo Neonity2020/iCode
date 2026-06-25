@@ -197,6 +197,73 @@ export function useCodexEvents({ appState, setAppState, setRuntime }: UseCodexEv
         });
       };
 
+      const inferFileChangePath = (changes: Array<{ path: string; kind: FileChangeKind }>) => {
+        const path = changes
+          .map((change) => change.path)
+          .filter(Boolean)
+          .filter((value, index, array) => array.indexOf(value) === index);
+        return path.length === 0 ? "" : path.length === 1 ? path[0] : path.join(" · ");
+      };
+
+      const parseDiffFileChanges = (diff: string) => {
+        const sections: Array<{ path: string; diff: string; kind: FileChangeKind }> = [];
+        const lines = diff.split("\n");
+        let current: string[] = [];
+
+        const flush = () => {
+          if (current.length === 0) return;
+          const section = current.join("\n");
+          const header = current[0] ?? "";
+          const gitMatch = header.match(/^diff --git a\/(.+?) b\/(.+)$/);
+          const renameToMatch = section.match(/^rename to (.+)$/m);
+          const renameFromMatch = section.match(/^rename from (.+)$/m);
+          const newFile = /\bnew file mode\b/.test(section);
+          const deletedFile = /\bdeleted file mode\b/.test(section);
+          const path =
+            renameToMatch?.[1] ?? gitMatch?.[2] ?? renameFromMatch?.[1] ?? gitMatch?.[1] ?? "";
+          const kind: FileChangeKind = newFile ? "add" : deletedFile ? "delete" : "modify";
+          sections.push({ path, diff: section, kind });
+          current = [];
+        };
+
+        for (const line of lines) {
+          if (line.startsWith("diff --git a/")) flush();
+          current.push(line);
+        }
+        flush();
+
+        if (sections.length > 0) return sections;
+        const pathMatch = diff.match(/^\+\+\+ b\/(.+)$/m);
+        if (!pathMatch?.[1]) return [];
+        return [{ path: pathMatch[1], diff, kind: "modify" as const }];
+      };
+
+      const upsertFileChange = (entry: FileChange) => {
+        setAppState((current) => ({
+          ...current,
+          sessions: current.sessions.map((session) => {
+            if (session.id !== sessionId) return session;
+            const fileChanges = session.conversation.fileChanges.some(
+              (change) => change.id === entry.id || (entry.path && change.path === entry.path),
+            )
+              ? session.conversation.fileChanges.map((change) => {
+                  const matches =
+                    change.id === entry.id || (entry.path && change.path === entry.path);
+                  if (!matches) return change;
+                  return {
+                    ...change,
+                    ...entry,
+                    path: entry.path || change.path,
+                    diff: entry.diff || change.diff,
+                    kind: entry.kind ?? change.kind,
+                  };
+                })
+              : [...session.conversation.fileChanges, entry];
+            return { ...session, conversation: { ...session.conversation, fileChanges } };
+          }),
+        }));
+      };
+
       if (event.method === "item/agentMessage/delta") {
         const itemId = String(params.itemId);
         const delta = String(params.delta ?? "");
@@ -219,6 +286,48 @@ export function useCodexEvents({ appState, setAppState, setRuntime }: UseCodexEv
             return { ...session, conversation: { ...session.conversation, messages } };
           }),
         }));
+        return;
+      }
+
+      if (event.method === "item/fileChange/patchUpdated") {
+        const changes = rawFileChanges(params.changes);
+        if (typeof params.itemId !== "string" || changes.length === 0) return;
+        const path = inferFileChangePath(changes);
+        const diff = changes
+          .map((change) => change.diff)
+          .filter(Boolean)
+          .join("\n\n");
+        const kind =
+          changes.find((change) => change.kind === "add")?.kind ??
+          changes.find((change) => change.kind === "delete")?.kind ??
+          "modify";
+        const entry: FileChange = {
+          id: String(params.itemId),
+          path,
+          kind,
+          diff,
+          status: "inProgress",
+        };
+        upsertFileChange(entry);
+        return;
+      }
+
+      if (event.method === "turn/diff/updated") {
+        const diff = String(params.diff ?? "");
+        if (!diff) return;
+        const turnId = String(params.turnId ?? "unknown");
+        const sections = parseDiffFileChanges(diff);
+        const changes =
+          sections.length > 0 ? sections : [{ path: "", diff, kind: "modify" as const }];
+        for (const [index, change] of changes.entries()) {
+          upsertFileChange({
+            id: `${turnId}:${index}:${change.path || "unknown"}`,
+            path: change.path,
+            kind: change.kind,
+            diff: change.diff,
+            status: "inProgress",
+          });
+        }
         return;
       }
 
@@ -251,10 +360,7 @@ export function useCodexEvents({ appState, setAppState, setRuntime }: UseCodexEv
 
         if (item.type === "fileChange") {
           const changes = rawFileChanges(item.changes);
-          const path = changes
-            .map((change) => change.path)
-            .filter(Boolean)
-            .filter((value, index, array) => array.indexOf(value) === index);
+          const path = inferFileChangePath(changes);
           const diff = changes
             .map((change) => change.diff)
             .filter(Boolean)
@@ -272,25 +378,12 @@ export function useCodexEvents({ appState, setAppState, setRuntime }: UseCodexEv
               : "inProgress";
           const entry: FileChange = {
             id: String(item.id),
-            path: path.length === 0 ? "" : path.length === 1 ? path[0] : path.join(" · "),
+            path,
             kind,
             diff,
             status,
           };
-          setAppState((current) => ({
-            ...current,
-            sessions: current.sessions.map((session) => {
-              if (session.id !== sessionId) return session;
-              const fileChanges = session.conversation.fileChanges.some(
-                (change) => change.id === item.id,
-              )
-                ? session.conversation.fileChanges.map((change) =>
-                    change.id === item.id ? entry : change,
-                  )
-                : [...session.conversation.fileChanges, entry];
-              return { ...session, conversation: { ...session.conversation, fileChanges } };
-            }),
-          }));
+          upsertFileChange(entry);
           return;
         }
 
