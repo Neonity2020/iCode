@@ -57,6 +57,7 @@ export type PlatformCapabilities = {
   localWorkspace: boolean;
   fileSystem: boolean;
   terminal: boolean;
+  workspaceChanges?: boolean;
 };
 
 export type ICodePlatformApi = {

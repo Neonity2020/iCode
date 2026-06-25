@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld("icode", {
     localWorkspace: true,
     fileSystem: true,
     terminal: true,
+    workspaceChanges: true,
   },
   getState: () => ipcRenderer.invoke("icode:get-state"),
   pickDirectory: () => ipcRenderer.invoke("icode:pick-directory"),

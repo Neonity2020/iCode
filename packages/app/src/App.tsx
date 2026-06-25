@@ -54,6 +54,74 @@ function clipboardImageFiles(event: ClipboardEvent<HTMLTextAreaElement>) {
     .filter((file): file is File => !!file && file.type.startsWith("image/"));
 }
 
+function parseWorkspaceStatus(output: string): WorkspaceChange[] {
+  return output
+    .split("\n")
+    .map((line) => line.trimEnd())
+    .filter(Boolean)
+    .flatMap((line) => {
+      if (line.length < 3) return [];
+      const code = line.slice(0, 2);
+      const rawPath = line.slice(3);
+      const pathParts = rawPath.split(" -> ");
+      const path = pathParts[pathParts.length - 1] ?? "";
+      const kind = code.includes("D")
+        ? "delete"
+        : code.includes("A") || code === "??"
+          ? "add"
+          : "modify";
+      return [
+        {
+          path,
+          kind,
+          diff: "",
+          status: "completed" as const,
+        } satisfies WorkspaceChange,
+      ];
+    });
+}
+
+async function readWorkspaceChangesViaPty(
+  platform: Pick<
+    import("@icode/platform").ICodePlatformApi,
+    "ptySpawn" | "ptyWrite" | "ptyKill" | "onPtyData" | "onPtyExit"
+  >,
+  cwd: string | undefined,
+) {
+  const { id } = await platform.ptySpawn({ cwd: cwd || undefined, cols: 80, rows: 24 });
+  let output = "";
+
+  return await new Promise<WorkspaceChange[]>((resolve) => {
+    let settled = false;
+    const finish = (changes: WorkspaceChange[]) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      unsubscribeData();
+      unsubscribeExit();
+      void platform.ptyKill({ id }).catch(() => {});
+      resolve(changes);
+    };
+
+    const unsubscribeData = platform.onPtyData(({ id: incomingId, data }) => {
+      if (incomingId !== id) return;
+      output += data;
+    });
+    const unsubscribeExit = platform.onPtyExit(({ id: incomingId }) => {
+      if (incomingId !== id) return;
+      finish(parseWorkspaceStatus(output));
+    });
+    const timeout = window.setTimeout(() => finish(parseWorkspaceStatus(output)), 4000);
+
+    void platform
+      .ptyWrite({
+        id,
+        data: "git status --porcelain=v1 --untracked-files=all\nexit\n",
+      })
+      .catch(() => finish([]));
+  });
+}
+
 export function App() {
   const platform = usePlatform();
   const [appState, setAppState] = useState<StoredState>(() => loadStoredState());
@@ -153,7 +221,12 @@ export function App() {
         return;
       }
       try {
-        const changes = await platform.getWorkspaceChanges();
+        if (platform.capabilities.workspaceChanges) {
+          const changes = await platform.getWorkspaceChanges();
+          if (!cancelled) setWorkspaceChanges(changes);
+          return;
+        }
+        const changes = await readWorkspaceChangesViaPty(platform, workspacePath);
         if (!cancelled) setWorkspaceChanges(changes);
       } catch {
         if (!cancelled) setWorkspaceChanges([]);
