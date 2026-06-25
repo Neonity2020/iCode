@@ -310,15 +310,18 @@ ipcMain.handle("icode:codex-start-thread", async (_event, { model } = {}) =>
   }),
 );
 
-ipcMain.handle("icode:codex-send-turn", async (_event, { threadId, text, model } = {}) => {
-  if (typeof threadId !== "string" || typeof text !== "string" || !text.trim()) {
+ipcMain.handle("icode:codex-send-turn", async (_event, { threadId, input, model } = {}) => {
+  if (typeof threadId !== "string" || !Array.isArray(input) || input.length === 0) {
     throw new Error("无效的 Codex turn 参数");
+  }
+  if (!input.every((item) => item && typeof item === "object" && typeof item.type === "string")) {
+    throw new Error("无效的 Codex turn 输入");
   }
   return codex.request("turn/start", {
     threadId,
     model: validateModel(model),
     cwd: selectedWorkspace,
-    input: [{ type: "text", text: text.trim() }],
+    input,
   });
 });
 

@@ -1,35 +1,52 @@
 import { ArrowUp, ChevronDown, Paperclip, Square } from "lucide-react";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type ClipboardEvent, type FormEvent } from "react";
 import { MODEL_OPTIONS } from "../config/app";
-import type { ModelId, RuntimeStatus } from "../domain/types";
+import type { MessageAttachment, ModelId, RuntimeStatus } from "../domain/types";
+
+export type ComposerAttachment = MessageAttachment & {
+  id: string;
+  status: "loading" | "ready" | "error";
+};
 
 type ComposerProps = {
   value: string;
+  attachments: ComposerAttachment[];
   selectedModel: ModelId;
   runtime: RuntimeStatus;
   runtimeLabel: string;
   active: boolean;
   onChange: (value: string) => void;
+  onPaste: (event: ClipboardEvent<HTMLTextAreaElement>) => void;
   onSubmit: (event: FormEvent) => void;
   onSelectModel: (model: ModelId) => void;
   onInterrupt: () => void;
+  onRemoveAttachment: (id: string) => void;
 };
 
 export function Composer({
   value,
+  attachments,
   selectedModel,
   runtime,
   runtimeLabel,
   active,
   onChange,
+  onPaste,
   onSubmit,
   onSelectModel,
   onInterrupt,
+  onRemoveAttachment,
 }: ComposerProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const pickerRef = useRef<HTMLDivElement | null>(null);
   const selectedOption =
     MODEL_OPTIONS.find((option) => option.id === selectedModel) ?? MODEL_OPTIONS[0];
+  const loadingAttachments = attachments.some((attachment) => attachment.status === "loading");
+  const readyAttachments = attachments.filter((attachment) => attachment.status === "ready");
+  const sendDisabled =
+    runtime.state !== "ready" ||
+    loadingAttachments ||
+    (!value.trim() && readyAttachments.length === 0);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -50,6 +67,7 @@ export function Composer({
           }
           value={value}
           disabled={runtime.state !== "ready"}
+          onPaste={onPaste}
           onChange={(event) => onChange(event.target.value)}
           onKeyDown={(event) => {
             if (event.key === "Enter" && !event.shiftKey) {
@@ -58,6 +76,28 @@ export function Composer({
             }
           }}
         />
+        {attachments.length > 0 && (
+          <div className="composer-attachments" aria-label="已附加图片">
+            {attachments.map((attachment, index) => (
+              <div className={`composer-attachment ${attachment.status}`} key={attachment.id}>
+                <button
+                  className="composer-attachment-remove"
+                  type="button"
+                  onClick={() => onRemoveAttachment(attachment.id)}
+                  aria-label={`移除图片 ${index + 1}`}
+                >
+                  ×
+                </button>
+                <img src={attachment.url} alt={attachment.name ?? `图片 ${index + 1}`} />
+                {attachment.status !== "ready" && (
+                  <span className="composer-attachment-state">
+                    {attachment.status === "loading" ? "读取中" : "读取失败"}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
         <div className="composer-toolbar">
           <div>
             <button className="tool-button" type="button">
@@ -108,12 +148,7 @@ export function Composer({
               <Square size={13} fill="currentColor" />
             </button>
           ) : (
-            <button
-              className="send-button"
-              type="submit"
-              disabled={!value.trim() || runtime.state !== "ready"}
-              aria-label="发送"
-            >
+            <button className="send-button" type="submit" disabled={sendDisabled} aria-label="发送">
               <ArrowUp size={17} />
             </button>
           )}

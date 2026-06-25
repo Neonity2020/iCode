@@ -59,8 +59,22 @@ export function ConversationView({
                   {message.content ? (
                     <MarkdownContent>{message.content}</MarkdownContent>
                   ) : (
-                    <span className="typing">Codex 正在思考…</span>
+                    <span className="typing">
+                      {message.role === "assistant" ? "Codex 正在思考…" : "已发送图片"}
+                    </span>
                   )}
+                  {message.attachments?.length ? (
+                    <div className="message-attachments" aria-label="图片附件">
+                      {message.attachments.map((attachment, index) => (
+                        <figure className="message-attachment" key={`${message.id}-${index}`}>
+                          <img
+                            src={attachment.url}
+                            alt={attachment.name ?? `图片附件 ${index + 1}`}
+                          />
+                        </figure>
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
               </article>
             ))}

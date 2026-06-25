@@ -3,6 +3,7 @@ import type {
   Conversation,
   FileChange,
   FileChangeKind,
+  MessageAttachment,
   Message,
   ModelId,
   Session,
@@ -78,11 +79,27 @@ function normalizeConversation(raw: unknown): Conversation {
           const item = message as Record<string, unknown>;
           if (typeof item.id !== "string" || (item.role !== "user" && item.role !== "assistant"))
             return null;
-          return {
+          const attachments: MessageAttachment[] | undefined = Array.isArray(item.attachments)
+            ? item.attachments.flatMap((attachment) => {
+                if (!attachment || typeof attachment !== "object") return [];
+                const entry = attachment as Record<string, unknown>;
+                if (entry.type !== "image" || typeof entry.url !== "string") return [];
+                return [
+                  {
+                    type: "image" as const,
+                    url: entry.url,
+                    ...(typeof entry.name === "string" ? { name: entry.name } : {}),
+                  },
+                ];
+              })
+            : undefined;
+          const normalized: Message = {
             id: item.id,
             role: item.role,
             content: typeof item.content === "string" ? item.content : "",
-          } satisfies Message;
+            attachments,
+          };
+          return normalized;
         })
         .filter((message): message is Message => message !== null)
     : [];

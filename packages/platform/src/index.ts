@@ -1,5 +1,14 @@
 export type ModelId = "gpt-5.5" | "gpt-5.4" | "gpt-5.4-mini";
 
+export type ImageDetail = "auto" | "low" | "high" | "original";
+
+export type UserInput =
+  | { type: "text"; text: string }
+  | { type: "image"; url: string; detail?: ImageDetail }
+  | { type: "localImage"; path: string; detail?: ImageDetail }
+  | { type: "skill"; name: string; path: string }
+  | { type: "mention"; name: string; path: string };
+
 export type RuntimeState = {
   workspace: string;
   launchId: string;
@@ -51,7 +60,7 @@ export type ICodePlatformApi = {
   startThread: (payload: { model: ModelId }) => Promise<{ thread: { id: string } }>;
   sendTurn: (payload: {
     threadId: string;
-    text: string;
+    input: UserInput[];
     model: ModelId;
   }) => Promise<{ turn: { id: string } }>;
   interruptTurn: (payload: { threadId: string; turnId: string }) => Promise<unknown>;

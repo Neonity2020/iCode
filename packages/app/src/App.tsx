@@ -5,9 +5,10 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type ClipboardEvent,
   type FormEvent,
 } from "react";
-import { Composer } from "./components/Composer";
+import { Composer, type ComposerAttachment } from "./components/Composer";
 import { ConversationView } from "./components/ConversationView";
 import { LeftSidebar } from "./components/LeftSidebar";
 import { RightSidebar } from "./components/RightSidebar";
@@ -24,7 +25,33 @@ import type {
 import { useCodexEvents } from "./hooks/useCodexEvents";
 import { usePanelResize } from "./hooks/usePanelResize";
 import { usePlatform } from "./platform/PlatformContext";
+import type { UserInput } from "@icode/platform";
 import { buildSession, loadStoredState, persistState } from "./state/persistence";
+
+function createAttachmentId() {
+  return `attachment-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function fileToDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result ?? ""));
+    reader.onerror = () => reject(reader.error ?? new Error("无法读取剪贴板图片"));
+    reader.readAsDataURL(file);
+  });
+}
+
+function clipboardImageFiles(event: ClipboardEvent<HTMLTextAreaElement>) {
+  const files = Array.from(event.clipboardData.files).filter((file) =>
+    file.type.startsWith("image/"),
+  );
+  if (files.length > 0) return files;
+
+  return Array.from(event.clipboardData.items)
+    .filter((item) => item.kind === "file")
+    .map((item) => item.getAsFile())
+    .filter((file): file is File => !!file && file.type.startsWith("image/"));
+}
 
 export function App() {
   const platform = usePlatform();
@@ -36,6 +63,7 @@ export function App() {
     launchId: null,
   });
   const [composer, setComposer] = useState("");
+  const [composerAttachments, setComposerAttachments] = useState<ComposerAttachment[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [expandedFiles, setExpandedFiles] = useState<Record<string, boolean>>({});
   const [tabs, setTabs] = useState<RightSidebarTab[]>(() => appState.tabs.map((t) => ({ ...t })));
@@ -172,6 +200,7 @@ export function App() {
       ],
     }));
     setComposer("");
+    setComposerAttachments([]);
   }
 
   function deleteSession(sessionId: number) {
@@ -183,21 +212,81 @@ export function App() {
         sessions.find((session) => session.id === current.activeSessionId)?.id ?? sessions[0].id;
       if (activeSessionId === sessions[0].id && current.activeSessionId !== activeSessionId) {
         setComposer("");
+        setComposerAttachments([]);
       }
       return { ...current, sessions, activeSessionId };
     });
   }
 
+  async function handleComposerPaste(event: ClipboardEvent<HTMLTextAreaElement>) {
+    const files = clipboardImageFiles(event);
+    if (files.length === 0) return;
+
+    event.preventDefault();
+    const additions = files.map((file) => ({
+      id: createAttachmentId(),
+      type: "image" as const,
+      name: file.name || `clipboard-${Date.now()}.png`,
+      url: "",
+      status: "loading" as const,
+    }));
+    setComposerAttachments((current) => [...current, ...additions]);
+
+    await Promise.all(
+      additions.map(async (attachment, index) => {
+        try {
+          const dataUrl = await fileToDataUrl(files[index]);
+          setComposerAttachments((current) =>
+            current.map((item) =>
+              item.id === attachment.id
+                ? { ...item, url: dataUrl, status: "ready" as const }
+                : item,
+            ),
+          );
+        } catch {
+          setComposerAttachments((current) =>
+            current.map((item) =>
+              item.id === attachment.id ? { ...item, status: "error" as const } : item,
+            ),
+          );
+        }
+      }),
+    );
+  }
+
+  function removeComposerAttachment(id: string) {
+    setComposerAttachments((current) => current.filter((attachment) => attachment.id !== id));
+  }
+
   async function sendMessage(event: FormEvent) {
     event.preventDefault();
     const content = composer.trim();
-    if (!content || sendingRef.current || runtime.state !== "ready") return;
+    const readyAttachments = composerAttachments.filter(
+      (attachment) => attachment.status === "ready" && attachment.url,
+    );
+    if (
+      (!content && readyAttachments.length === 0) ||
+      sendingRef.current ||
+      runtime.state !== "ready"
+    )
+      return;
+    if (composerAttachments.some((attachment) => attachment.status === "loading")) return;
     if (currentSessionActiveTurn) return;
     const sessionId = appState.activeSessionId;
     const userMessageId = `user-${Date.now()}`;
+    const pendingAttachments = readyAttachments.map((attachment) => ({ ...attachment }));
     sendingRef.current = true;
     setComposer("");
+    setComposerAttachments([]);
     setError(null);
+
+    const input: UserInput[] = [
+      ...(content ? [{ type: "text" as const, text: content }] : []),
+      ...readyAttachments.map((attachment) => ({
+        type: "image" as const,
+        url: attachment.url,
+      })),
+    ];
 
     setAppState((current) => ({
       ...current,
@@ -205,14 +294,26 @@ export function App() {
         session.id === sessionId
           ? {
               ...session,
-              title: session.title === "新任务" ? content.slice(0, 24) : session.title,
-              detail: content.slice(0, 36),
+              title:
+                session.title === "新任务"
+                  ? (content || `${readyAttachments.length} 张图片`).slice(0, 24)
+                  : session.title,
+              detail: (content || `${readyAttachments.length} 张图片`).slice(0, 36),
               time: "刚刚",
               conversation: {
                 ...session.conversation,
                 messages: [
                   ...session.conversation.messages,
-                  { id: userMessageId, role: "user", content },
+                  {
+                    id: userMessageId,
+                    role: "user",
+                    content: content || (readyAttachments.length > 0 ? "已发送图片" : ""),
+                    attachments: readyAttachments.map((attachment) => ({
+                      type: "image",
+                      url: attachment.url,
+                      name: attachment.name,
+                    })),
+                  },
                 ],
                 error: null,
               },
@@ -237,7 +338,7 @@ export function App() {
       }
       const result = await platform.sendTurn({
         threadId,
-        text: content,
+        input,
         model: selectedModel,
       });
       if (result?.turn.id) {
@@ -260,6 +361,7 @@ export function App() {
     } catch (caught) {
       sendingRef.current = false;
       runningTurnRef.current = null;
+      setComposerAttachments((current) => (current.length === 0 ? pendingAttachments : current));
       const message = caught instanceof Error ? caught.message : String(caught);
       setAppState((current) => ({
         ...current,
@@ -394,16 +496,19 @@ export function App() {
 
         <Composer
           value={composer}
+          attachments={composerAttachments}
           selectedModel={selectedModel}
           runtime={runtime}
           runtimeLabel={runtimeLabel}
           active={!!currentSessionActiveTurn}
           onChange={setComposer}
+          onPaste={handleComposerPaste}
           onSubmit={sendMessage}
           onSelectModel={(model) =>
             setAppState((current) => ({ ...current, selectedModel: model }))
           }
           onInterrupt={() => void interrupt()}
+          onRemoveAttachment={removeComposerAttachment}
         />
       </main>
 

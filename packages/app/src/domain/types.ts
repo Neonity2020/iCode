@@ -1,4 +1,15 @@
-export type Message = { id: string; role: "user" | "assistant"; content: string };
+export type MessageAttachment = {
+  type: "image";
+  url: string;
+  name?: string;
+};
+
+export type Message = {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  attachments?: MessageAttachment[];
+};
 
 export type Activity = { id: string; title: string; detail: string; status: string };
 
