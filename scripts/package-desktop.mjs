@@ -9,15 +9,20 @@ const rootDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)),
 const desktopDirectory = path.join(rootDirectory, "apps", "desktop");
 const releaseDirectory = path.join(rootDirectory, "release", "mac-arm64");
 const stagingDirectory = path.join(releaseDirectory, "staging");
+const iconsetDirectory = path.join(releaseDirectory, "iCode.iconset");
 const appBundlePath = path.join(releaseDirectory, "iCode.app");
 const stagedAppBundlePath = path.join(stagingDirectory, "iCode.app");
+const appResourcesDirectory = path.join(appBundlePath, "Contents", "Resources");
+const iconFileName = "iCode.icns";
+const iconFilePath = path.join(appResourcesDirectory, iconFileName);
 const appResourcesPath = path.join(appBundlePath, "Contents", "Resources", "app");
 const appNodeModulesPath = path.join(appResourcesPath, "node_modules");
 const nodePtySourceDirectory = path.join(desktopDirectory, "node_modules", "node-pty");
 const electronPackageDirectory = path.dirname(require.resolve("electron/package.json"));
 const electronTemplatePath = path.join(electronPackageDirectory, "dist", "Electron.app");
-const appVersion = JSON.parse(await readFile(path.join(rootDirectory, "package.json"), "utf8"))
-  .version;
+const appVersion = JSON.parse(
+  await readFile(path.join(rootDirectory, "package.json"), "utf8"),
+).version;
 
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
@@ -30,16 +35,34 @@ function run(command, args, options = {}) {
   }
 }
 
+async function buildMacIcon() {
+  await rm(iconsetDirectory, { recursive: true, force: true });
+  await rm(iconFilePath, { force: true });
+  run("python3", [
+    path.join(rootDirectory, "scripts", "make-macos-icon.py"),
+    "--output",
+    iconsetDirectory,
+  ]);
+  run("iconutil", ["-c", "icns", iconsetDirectory, "-o", iconFilePath]);
+  await rm(iconsetDirectory, { recursive: true, force: true });
+}
+
 async function copyRuntimeAppFiles() {
-  await mkdir(appResourcesPath, { recursive: true });
+  await mkdir(appResourcesDirectory, { recursive: true });
   await cp(path.join(desktopDirectory, "dist"), path.join(appResourcesPath, "dist"), {
     recursive: true,
     force: true,
     dereference: true,
   });
   await mkdir(path.join(appResourcesPath, "electron"), { recursive: true });
-  await cp(path.join(desktopDirectory, "electron", "main.mjs"), path.join(appResourcesPath, "electron", "main.mjs"));
-  await cp(path.join(desktopDirectory, "electron", "preload.cjs"), path.join(appResourcesPath, "electron", "preload.cjs"));
+  await cp(
+    path.join(desktopDirectory, "electron", "main.mjs"),
+    path.join(appResourcesPath, "electron", "main.mjs"),
+  );
+  await cp(
+    path.join(desktopDirectory, "electron", "preload.cjs"),
+    path.join(appResourcesPath, "electron", "preload.cjs"),
+  );
   await cp(
     path.join(nodePtySourceDirectory, "lib"),
     path.join(appNodeModulesPath, "node-pty", "lib"),
@@ -130,9 +153,18 @@ async function packageMacArm64Dmg() {
     dereference: true,
   });
   await copyRuntimeAppFiles();
+  await buildMacIcon();
 
-  await addOrSetPlistKey(path.join(appBundlePath, "Contents", "Info.plist"), "CFBundleDisplayName", "iCode");
-  await addOrSetPlistKey(path.join(appBundlePath, "Contents", "Info.plist"), "CFBundleName", "iCode");
+  await addOrSetPlistKey(
+    path.join(appBundlePath, "Contents", "Info.plist"),
+    "CFBundleDisplayName",
+    "iCode",
+  );
+  await addOrSetPlistKey(
+    path.join(appBundlePath, "Contents", "Info.plist"),
+    "CFBundleName",
+    "iCode",
+  );
   await addOrSetPlistKey(
     path.join(appBundlePath, "Contents", "Info.plist"),
     "CFBundleIdentifier",
@@ -147,6 +179,16 @@ async function packageMacArm64Dmg() {
     path.join(appBundlePath, "Contents", "Info.plist"),
     "CFBundleVersion",
     appVersion,
+  );
+  await addOrSetPlistKey(
+    path.join(appBundlePath, "Contents", "Info.plist"),
+    "CFBundleIconFile",
+    iconFileName,
+  );
+  await addOrSetPlistKey(
+    path.join(appBundlePath, "Contents", "Info.plist"),
+    "CFBundleIconName",
+    "iCode",
   );
 
   run("codesign", ["--force", "--sign", "-", "--timestamp=none", appBundlePath]);

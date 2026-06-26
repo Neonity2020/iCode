@@ -37,5 +37,8 @@ contextBridge.exposeInMainWorld("icode", {
   },
   listFs: (payload) => ipcRenderer.invoke("icode:fs-list", payload),
   getWorkspaceChanges: () => ipcRenderer.invoke("icode:get-workspace-changes"),
+  getSettings: () => ipcRenderer.invoke("icode:settings-get"),
+  updateSettings: (settings) => ipcRenderer.invoke("icode:settings-update", settings),
+  resetSettings: () => ipcRenderer.invoke("icode:settings-reset"),
   platform: process.platform,
 });

@@ -13,6 +13,7 @@ type LeftSidebarProps = {
   onCreateSession: () => void;
   onSelectSession: (id: number) => void;
   onDeleteSession: (id: number) => void;
+  onOpenSettings: () => void;
 };
 
 export function LeftSidebar({
@@ -26,6 +27,7 @@ export function LeftSidebar({
   onCreateSession,
   onSelectSession,
   onDeleteSession,
+  onOpenSettings,
 }: LeftSidebarProps) {
   return (
     <aside className="sidebar">
@@ -93,7 +95,7 @@ export function LeftSidebar({
       </nav>
 
       <div className="sidebar-footer">
-        <button type="button">
+        <button type="button" onClick={onOpenSettings}>
           <Settings size={16} />
           <span>设置</span>
         </button>

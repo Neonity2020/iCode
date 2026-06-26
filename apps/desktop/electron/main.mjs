@@ -1,6 +1,7 @@
 import { spawn, spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { accessSync, constants } from "node:fs";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import readline from "node:readline";
@@ -14,9 +15,52 @@ const windows = new Set();
 let selectedWorkspace = projectDirectory;
 const appRunId = randomUUID();
 const supportedModels = new Set(["gpt-5.5", "gpt-5.4", "gpt-5.4-mini"]);
+const defaultSettings = {
+  defaultModel: "gpt-5.5",
+  codexCliPath: "",
+  terminalShell: "",
+};
+let settingsCache = null;
+
+function settingsPath() {
+  return path.join(app.getPath("userData"), "settings.json");
+}
+
+function normalizeSettings(raw) {
+  const source = raw && typeof raw === "object" ? raw : {};
+  const defaultModel =
+    typeof source.defaultModel === "string" && supportedModels.has(source.defaultModel)
+      ? source.defaultModel
+      : defaultSettings.defaultModel;
+  return {
+    defaultModel,
+    codexCliPath: typeof source.codexCliPath === "string" ? source.codexCliPath : "",
+    terminalShell: typeof source.terminalShell === "string" ? source.terminalShell : "",
+  };
+}
+
+async function readSettings() {
+  if (settingsCache) return settingsCache;
+  try {
+    const raw = await readFile(settingsPath(), "utf8");
+    settingsCache = normalizeSettings(JSON.parse(raw));
+  } catch {
+    settingsCache = { ...defaultSettings };
+  }
+  return settingsCache;
+}
+
+async function saveSettings(nextSettings) {
+  settingsCache = normalizeSettings(nextSettings);
+  await mkdir(path.dirname(settingsPath()), { recursive: true });
+  await writeFile(settingsPath(), `${JSON.stringify(settingsCache, null, 2)}\n`, "utf8");
+  return settingsCache;
+}
 
 function findCodexExecutable() {
+  const configuredCodexPath = settingsCache?.codexCliPath?.trim();
   const candidates = [
+    configuredCodexPath,
     process.env.CODEX_CLI_PATH,
     ...(process.platform === "darwin"
       ? [
@@ -407,7 +451,9 @@ ipcMain.handle(
   async (_event, { cwd, cols, rows, shell: requestedShell } = {}) => {
     await loadPty();
     if (!ptyModule) throw new Error(ptyLoadError?.message ?? "node-pty 不可用");
-    const shellName = requestedShell ?? (process.platform === "win32" ? "cmd.exe" : "bash");
+    const configuredShell = settingsCache?.terminalShell?.trim();
+    const shellName =
+      requestedShell ?? (configuredShell || (process.platform === "win32" ? "cmd.exe" : "bash"));
     const shellArgs = process.platform === "win32" ? [] : ["-l"];
     const id = String(nextPtyId++);
     const proc = ptyModule.spawn(shellName, shellArgs, {
@@ -494,7 +540,24 @@ ipcMain.handle("icode:fs-list", async (_event, { path: root, depth } = {}) => {
 
 ipcMain.handle("icode:get-workspace-changes", () => readWorkspaceChanges());
 
-app.whenReady().then(() => {
+ipcMain.handle("icode:settings-get", () => readSettings());
+
+ipcMain.handle("icode:settings-update", async (_event, patch = {}) => {
+  const current = await readSettings();
+  const next = await saveSettings({
+    ...current,
+    ...(patch && typeof patch === "object" ? patch : {}),
+  });
+  if (next.codexCliPath !== current.codexCliPath && codex.status.state === "error") {
+    void codex.start().catch(() => {});
+  }
+  return next;
+});
+
+ipcMain.handle("icode:settings-reset", () => saveSettings(defaultSettings));
+
+app.whenReady().then(async () => {
+  await readSettings();
   createWindow();
   void codex.start().catch(() => {});
   app.on("activate", () => {

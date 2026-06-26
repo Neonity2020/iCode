@@ -12,6 +12,7 @@ import { Composer, type ComposerAttachment } from "./components/Composer";
 import { ConversationView } from "./components/ConversationView";
 import { LeftSidebar } from "./components/LeftSidebar";
 import { RightSidebar } from "./components/RightSidebar";
+import { SettingsView } from "./components/SettingsView";
 import { disposeTerminalTab } from "./components/TerminalTab";
 import { Topbar } from "./components/Topbar";
 import type {
@@ -125,6 +126,7 @@ async function readWorkspaceChangesViaPty(
 export function App() {
   const platform = usePlatform();
   const [appState, setAppState] = useState<StoredState>(() => loadStoredState());
+  const [viewMode, setViewMode] = useState<"workspace" | "settings">("workspace");
   const [runtime, setRuntime] = useState<RuntimeStatus>({
     state: "starting",
     version: null,
@@ -154,6 +156,24 @@ export function App() {
     setAppState,
     setRuntime,
   });
+
+  useEffect(() => {
+    let cancelled = false;
+    void platform
+      .getSettings()
+      .then((settings) => {
+        if (cancelled) return;
+        setAppState((current) =>
+          current.selectedModel === settings.defaultModel
+            ? current
+            : { ...current, selectedModel: settings.defaultModel },
+        );
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [platform]);
 
   const currentSession =
     appState.sessions.find((session) => session.id === appState.activeSessionId) ??
@@ -541,6 +561,20 @@ export function App() {
     if (runtime.state === "error") return "Codex 连接失败";
     return "正在连接 Codex";
   }, [runtime.state]);
+  const handleDefaultModelChange = useCallback((model: typeof selectedModel) => {
+    setAppState((current) =>
+      current.selectedModel === model ? current : { ...current, selectedModel: model },
+    );
+  }, []);
+
+  if (viewMode === "settings") {
+    return (
+      <SettingsView
+        onClose={() => setViewMode("workspace")}
+        onDefaultModelChange={handleDefaultModelChange}
+      />
+    );
+  }
 
   return (
     <div
@@ -568,6 +602,7 @@ export function App() {
         onCreateSession={createNewSession}
         onSelectSession={(id) => setAppState((current) => ({ ...current, activeSessionId: id }))}
         onDeleteSession={deleteSession}
+        onOpenSettings={() => setViewMode("settings")}
       />
 
       <main className="main-panel">

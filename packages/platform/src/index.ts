@@ -60,6 +60,12 @@ export type PlatformCapabilities = {
   workspaceChanges?: boolean;
 };
 
+export type AppSettings = {
+  defaultModel: ModelId;
+  codexCliPath: string;
+  terminalShell: string;
+};
+
 export type ICodePlatformApi = {
   kind: "desktop" | "web";
   capabilities: PlatformCapabilities;
@@ -99,4 +105,7 @@ export type ICodePlatformApi = {
     children: FileSystemNode[];
   }>;
   getWorkspaceChanges: () => Promise<WorkspaceChange[]>;
+  getSettings: () => Promise<AppSettings>;
+  updateSettings: (settings: Partial<AppSettings>) => Promise<AppSettings>;
+  resetSettings: () => Promise<AppSettings>;
 };
