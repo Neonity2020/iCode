@@ -1,12 +1,21 @@
-import { ArrowLeft, Bot, RotateCcw, Settings, SlidersHorizontal, Terminal } from "lucide-react";
+import {
+  ArrowLeft,
+  Bot,
+  RotateCcw,
+  Settings,
+  SlidersHorizontal,
+  Sparkles,
+  Terminal,
+} from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import type { AppSettings, ModelId } from "@icode/platform";
+import type { AppSettings, ModelId, SkillInfo } from "@icode/platform";
 import { MODEL_OPTIONS } from "../config/app";
 import { usePlatform } from "../platform/PlatformContext";
 
-type SettingsSection = "general" | "codex" | "terminal";
+export type SettingsSection = "general" | "codex" | "terminal" | "skills";
 
 type SettingsViewProps = {
+  initialSection?: SettingsSection;
   onClose: () => void;
   onDefaultModelChange: (model: ModelId) => void;
 };
@@ -15,14 +24,30 @@ const sections: { id: SettingsSection; label: string; icon: typeof Settings }[] 
   { id: "general", label: "通用", icon: SlidersHorizontal },
   { id: "codex", label: "Codex", icon: Bot },
   { id: "terminal", label: "终端", icon: Terminal },
+  { id: "skills", label: "Skills", icon: Sparkles },
 ];
 
-export function SettingsView({ onClose, onDefaultModelChange }: SettingsViewProps) {
+const skillSourceLabels: Record<SkillInfo["source"], string> = {
+  codex: "Codex",
+  system: "系统",
+  agents: "Agents",
+  plugin: "插件",
+};
+
+export function SettingsView({
+  initialSection = "general",
+  onClose,
+  onDefaultModelChange,
+}: SettingsViewProps) {
   const platform = usePlatform();
-  const [activeSection, setActiveSection] = useState<SettingsSection>("general");
+  const [activeSection, setActiveSection] = useState<SettingsSection>(initialSection);
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [skills, setSkills] = useState<SkillInfo[]>([]);
+  const [skillsError, setSkillsError] = useState<string | null>(null);
+  const [skillsLoading, setSkillsLoading] = useState(false);
+  const [skillsReloadKey, setSkillsReloadKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -41,6 +66,27 @@ export function SettingsView({ onClose, onDefaultModelChange }: SettingsViewProp
       cancelled = true;
     };
   }, [onDefaultModelChange, platform]);
+
+  useEffect(() => {
+    if (activeSection !== "skills") return;
+    let cancelled = false;
+    setSkillsLoading(true);
+    setSkillsError(null);
+    void platform
+      .listSkills()
+      .then((loaded) => {
+        if (!cancelled) setSkills(loaded);
+      })
+      .catch((caught) => {
+        if (!cancelled) setSkillsError(caught instanceof Error ? caught.message : String(caught));
+      })
+      .finally(() => {
+        if (!cancelled) setSkillsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeSection, platform, skillsReloadKey]);
 
   const activeTitle = useMemo(
     () => sections.find((section) => section.id === activeSection)?.label ?? "设置",
@@ -177,6 +223,53 @@ export function SettingsView({ onClose, onDefaultModelChange }: SettingsViewProp
                       }
                     />
                   </SettingRow>
+                </div>
+              )}
+
+              {activeSection === "skills" && (
+                <div className="skills-settings">
+                  <div className="skills-summary">
+                    <div>
+                      <strong>{skills.length} 个 Skills</strong>
+                      <span>来自本机 Codex、Agents 和插件目录</span>
+                    </div>
+                    <button
+                      className="settings-control-button"
+                      type="button"
+                      disabled={skillsLoading}
+                      onClick={() => setSkillsReloadKey((current) => current + 1)}
+                    >
+                      {skillsLoading ? "读取中" : "刷新"}
+                    </button>
+                  </div>
+
+                  {skillsError && <div className="settings-error">{skillsError}</div>}
+                  {!skillsError && skillsLoading && skills.length === 0 && (
+                    <div className="settings-empty">正在读取 Skills</div>
+                  )}
+                  {!skillsError && !skillsLoading && skills.length === 0 && (
+                    <div className="settings-empty">未发现本地 Skills</div>
+                  )}
+                  {skills.length > 0 && (
+                    <div className="skill-list" aria-label="Skills 列表">
+                      {skills.map((skill) => (
+                        <div className="skill-item" key={skill.id}>
+                          <div className="skill-copy">
+                            <div className="skill-title-row">
+                              <strong>{skill.name}</strong>
+                              <span>
+                                {skillSourceLabels[skill.source]}
+                                {skill.packageName ? ` · ${skill.packageName}` : ""}
+                              </span>
+                            </div>
+                            <p>{skill.description || "无描述"}</p>
+                            <small title={skill.path}>{skill.path}</small>
+                          </div>
+                          <span className="skill-status">已安装</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </>

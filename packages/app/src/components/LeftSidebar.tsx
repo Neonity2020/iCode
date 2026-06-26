@@ -1,4 +1,13 @@
-import { ChevronDown, Code2, PanelLeft, Plus, Search, Settings, Trash2 } from "lucide-react";
+import {
+  ChevronDown,
+  Code2,
+  PanelLeft,
+  Plus,
+  Search,
+  Settings,
+  Sparkles,
+  Trash2,
+} from "lucide-react";
 import type { RuntimeStatus, Session } from "../domain/types";
 import { compactPath } from "../lib/paths";
 
@@ -13,6 +22,7 @@ type LeftSidebarProps = {
   onCreateSession: () => void;
   onSelectSession: (id: number) => void;
   onDeleteSession: (id: number) => void;
+  onOpenSkills: () => void;
   onOpenSettings: () => void;
 };
 
@@ -27,6 +37,7 @@ export function LeftSidebar({
   onCreateSession,
   onSelectSession,
   onDeleteSession,
+  onOpenSkills,
   onOpenSettings,
 }: LeftSidebarProps) {
   return (
@@ -54,6 +65,10 @@ export function LeftSidebar({
         <Search size={15} />
         <span>搜索任务</span>
         <kbd>⌘ K</kbd>
+      </button>
+      <button className="skills-button" type="button" onClick={onOpenSkills}>
+        <Sparkles size={15} />
+        <span>Skills 管理</span>
       </button>
 
       <div className="sidebar-label">当前运行</div>

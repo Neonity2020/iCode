@@ -40,5 +40,6 @@ contextBridge.exposeInMainWorld("icode", {
   getSettings: () => ipcRenderer.invoke("icode:settings-get"),
   updateSettings: (settings) => ipcRenderer.invoke("icode:settings-update", settings),
   resetSettings: () => ipcRenderer.invoke("icode:settings-reset"),
+  listSkills: () => ipcRenderer.invoke("icode:skills-list"),
   platform: process.platform,
 });

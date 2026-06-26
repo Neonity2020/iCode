@@ -66,6 +66,16 @@ export type AppSettings = {
   terminalShell: string;
 };
 
+export type SkillInfo = {
+  id: string;
+  name: string;
+  description: string;
+  path: string;
+  source: "codex" | "system" | "agents" | "plugin";
+  packageName?: string;
+  status: "installed";
+};
+
 export type ICodePlatformApi = {
   kind: "desktop" | "web";
   capabilities: PlatformCapabilities;
@@ -108,4 +118,5 @@ export type ICodePlatformApi = {
   getSettings: () => Promise<AppSettings>;
   updateSettings: (settings: Partial<AppSettings>) => Promise<AppSettings>;
   resetSettings: () => Promise<AppSettings>;
+  listSkills: () => Promise<SkillInfo[]>;
 };

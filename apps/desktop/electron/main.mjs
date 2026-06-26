@@ -1,7 +1,7 @@
 import { spawn, spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { accessSync, constants } from "node:fs";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import readline from "node:readline";
@@ -172,6 +172,141 @@ function readWorkspaceChanges() {
       id: `workspace:${index}:${filePath}`,
     };
   });
+}
+
+function cleanYamlValue(value) {
+  const trimmed = value.trim();
+  if (
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  ) {
+    return trimmed.slice(1, -1).trim();
+  }
+  return trimmed;
+}
+
+function parseSkillFrontmatter(content) {
+  if (!content.startsWith("---")) return {};
+  const metadata = {};
+  const lines = content.split(/\r?\n/);
+  for (let index = 1; index < lines.length; index += 1) {
+    const line = lines[index];
+    if (line.trim() === "---") break;
+    const separator = line.indexOf(":");
+    if (separator === -1) continue;
+    const key = line.slice(0, separator).trim();
+    if (key !== "name" && key !== "description") continue;
+    metadata[key] = cleanYamlValue(line.slice(separator + 1));
+  }
+  return metadata;
+}
+
+async function readSkillDirectory(directory, source, packageName) {
+  const skillPath = path.join(directory, "SKILL.md");
+  try {
+    const content = await readFile(skillPath, "utf8");
+    const metadata = parseSkillFrontmatter(content);
+    return {
+      id: skillPath,
+      name: metadata.name || path.basename(directory),
+      description: metadata.description || "",
+      path: skillPath,
+      source,
+      packageName,
+      status: "installed",
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function listDirectSkillDirectories(root, source, packageName, skipNames = new Set()) {
+  let entries;
+  try {
+    entries = await readdir(root, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+
+  const skills = await Promise.all(
+    entries
+      .filter((entry) => entry.isDirectory() && !skipNames.has(entry.name))
+      .map((entry) => readSkillDirectory(path.join(root, entry.name), source, packageName)),
+  );
+  return skills.filter(Boolean);
+}
+
+async function listPluginSkills() {
+  const cacheRoot = path.join(os.homedir(), ".codex", "plugins", "cache");
+  let pluginEntries;
+  try {
+    pluginEntries = await readdir(cacheRoot, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+
+  const skills = [];
+  for (const pluginEntry of pluginEntries) {
+    if (!pluginEntry.isDirectory()) continue;
+    const pluginPath = path.join(cacheRoot, pluginEntry.name);
+    let packageEntries;
+    try {
+      packageEntries = await readdir(pluginPath, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const packageEntry of packageEntries) {
+      if (!packageEntry.isDirectory()) continue;
+      const packagePath = path.join(pluginPath, packageEntry.name);
+      let versionEntries;
+      try {
+        versionEntries = await readdir(packagePath, { withFileTypes: true });
+      } catch {
+        continue;
+      }
+      for (const versionEntry of versionEntries) {
+        if (!versionEntry.isDirectory()) continue;
+        const skillsRoot = path.join(packagePath, versionEntry.name, "skills");
+        const pluginSkills = await listDirectSkillDirectories(
+          skillsRoot,
+          "plugin",
+          `${pluginEntry.name}/${packageEntry.name}`,
+        );
+        skills.push(...pluginSkills);
+      }
+    }
+  }
+  return skills;
+}
+
+async function listSkills() {
+  const codexSkillsRoot = path.join(os.homedir(), ".codex", "skills");
+  const sourceOrder = new Map([
+    ["codex", 0],
+    ["agents", 1],
+    ["system", 2],
+    ["plugin", 3],
+  ]);
+  const skillGroups = await Promise.all([
+    listDirectSkillDirectories(codexSkillsRoot, "codex", undefined, new Set([".system"])),
+    listDirectSkillDirectories(path.join(codexSkillsRoot, ".system"), "system"),
+    listDirectSkillDirectories(path.join(os.homedir(), ".agents", "skills"), "agents"),
+    listPluginSkills(),
+  ]);
+  const seen = new Set();
+  return skillGroups
+    .flat()
+    .filter((skill) => {
+      if (seen.has(skill.path)) return false;
+      seen.add(skill.path);
+      return true;
+    })
+    .sort((left, right) => {
+      const sourceDiff =
+        (sourceOrder.get(left.source) ?? 99) - (sourceOrder.get(right.source) ?? 99);
+      if (sourceDiff !== 0) return sourceDiff;
+      return left.name.localeCompare(right.name);
+    });
 }
 
 class CodexAppServer {
@@ -556,6 +691,8 @@ ipcMain.handle("icode:fs-list", async (_event, { path: root, depth } = {}) => {
 });
 
 ipcMain.handle("icode:get-workspace-changes", () => readWorkspaceChanges());
+
+ipcMain.handle("icode:skills-list", () => listSkills());
 
 ipcMain.handle("icode:settings-get", () => readSettings());
 

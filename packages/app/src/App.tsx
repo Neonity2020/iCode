@@ -12,7 +12,7 @@ import { Composer, type ComposerAttachment } from "./components/Composer";
 import { ConversationView } from "./components/ConversationView";
 import { LeftSidebar } from "./components/LeftSidebar";
 import { RightSidebar } from "./components/RightSidebar";
-import { SettingsView } from "./components/SettingsView";
+import { SettingsView, type SettingsSection } from "./components/SettingsView";
 import { disposeTerminalTab } from "./components/TerminalTab";
 import { Topbar } from "./components/Topbar";
 import type {
@@ -127,6 +127,7 @@ export function App() {
   const platform = usePlatform();
   const [appState, setAppState] = useState<StoredState>(() => loadStoredState());
   const [viewMode, setViewMode] = useState<"workspace" | "settings">("workspace");
+  const [settingsSection, setSettingsSection] = useState<SettingsSection>("general");
   const [runtime, setRuntime] = useState<RuntimeStatus>({
     state: "starting",
     version: null,
@@ -570,6 +571,7 @@ export function App() {
   if (viewMode === "settings") {
     return (
       <SettingsView
+        initialSection={settingsSection}
         onClose={() => setViewMode("workspace")}
         onDefaultModelChange={handleDefaultModelChange}
       />
@@ -602,7 +604,14 @@ export function App() {
         onCreateSession={createNewSession}
         onSelectSession={(id) => setAppState((current) => ({ ...current, activeSessionId: id }))}
         onDeleteSession={deleteSession}
-        onOpenSettings={() => setViewMode("settings")}
+        onOpenSkills={() => {
+          setSettingsSection("skills");
+          setViewMode("settings");
+        }}
+        onOpenSettings={() => {
+          setSettingsSection("general");
+          setViewMode("settings");
+        }}
       />
 
       <main className="main-panel">
