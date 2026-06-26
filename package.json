@@ -12,6 +12,7 @@
     "build": "vp check && tsc -p packages/app/tsconfig.json && tsc -p apps/desktop/tsconfig.json && tsc -p apps/web/tsconfig.json && node scripts/run-app.mjs desktop build && node scripts/run-app.mjs web build",
     "build:desktop": "node scripts/run-app.mjs desktop build",
     "build:web": "node scripts/run-app.mjs web build",
+    "dist:desktop:dmg:arm64": "pnpm run build:desktop && node scripts/package-desktop.mjs --arch arm64 --format dmg",
     "preview:web": "node scripts/run-app.mjs web preview",
     "start": "node scripts/run-app.mjs desktop start"
   },
