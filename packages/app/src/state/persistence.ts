@@ -15,6 +15,12 @@ function normalizeModel(value: unknown): ModelId {
   return MODEL_OPTIONS.some((option) => option.id === value) ? (value as ModelId) : DEFAULT_MODEL;
 }
 
+function defaultTabTitle(kind: StoredRightSidebarTab["kind"]) {
+  if (kind === "tree") return "文件树";
+  if (kind === "terminal") return "终端";
+  return "文件变更";
+}
+
 export function defaultTabs(): StoredRightSidebarTab[] {
   return [{ id: "files", kind: "files", title: "文件变更" }];
 }
@@ -27,13 +33,13 @@ function normalizeStoredTabs(raw: unknown): StoredRightSidebarTab[] {
     if (!entry || typeof entry !== "object") continue;
     const item = entry as Record<string, unknown>;
     const id = typeof item.id === "string" ? item.id : "";
-    const kind = item.kind === "tree" ? "tree" : "files";
+    const kind = item.kind === "tree" || item.kind === "terminal" ? item.kind : "files";
     if (!id || seen.has(id)) continue;
     seen.add(id);
     tabs.push({
       id,
       kind,
-      title: typeof item.title === "string" ? item.title : kind === "tree" ? "文件树" : "文件变更",
+      title: typeof item.title === "string" ? item.title : defaultTabTitle(kind),
       cwd: typeof item.cwd === "string" && item.cwd ? item.cwd : undefined,
     });
   }

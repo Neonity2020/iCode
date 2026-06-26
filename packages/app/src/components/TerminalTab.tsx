@@ -1,3 +1,4 @@
+import "@xterm/xterm/css/xterm.css";
 import { useEffect, useRef } from "react";
 import type { ICodePlatformApi } from "@icode/platform";
 import type { PtySession, RightSidebarTab } from "../domain/types";
@@ -22,6 +23,9 @@ export function TerminalTab({ tab }: { tab: RightSidebarTab }) {
 
   useEffect(() => {
     let cancelled = false;
+    let startupBuffer = "";
+    let startupTimer: number | null = null;
+    let startupDone = false;
     const session: PtySession = {
       ptyId: "",
       unsubscribe: () => {},
@@ -43,9 +47,37 @@ export function TerminalTab({ tab }: { tab: RightSidebarTab }) {
       if (cancelled || !containerRef.current) return;
 
       const terminal = new Terminal({
-        fontSize: 12,
+        fontSize: 13,
+        fontFamily:
+          '"SF Mono", SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace',
+        lineHeight: 1.38,
         cursorBlink: true,
-        theme: { background: "#1c1c1a", foreground: "#e7e7e2" },
+        screenReaderMode: false,
+        scrollback: 4000,
+        theme: {
+          background: "#fbfbf8",
+          foreground: "#2f2f2c",
+          cursor: "#2f2f2c",
+          cursorAccent: "#fbfbf8",
+          selectionBackground: "rgba(146, 146, 146, 0.28)",
+          selectionInactiveBackground: "rgba(146, 146, 146, 0.18)",
+          black: "#2a2a27",
+          red: "#b85c53",
+          green: "#4e8c59",
+          yellow: "#a47c2b",
+          blue: "#4f74b8",
+          magenta: "#8c63b8",
+          cyan: "#4e8990",
+          white: "#d7d7d1",
+          brightBlack: "#6f6f68",
+          brightRed: "#d06a61",
+          brightGreen: "#6aa773",
+          brightYellow: "#c99a45",
+          brightBlue: "#6e8ed0",
+          brightMagenta: "#a581d0",
+          brightCyan: "#67aeb4",
+          brightWhite: "#1f1f1d",
+        },
       });
       const fitAddon = new FitAddon();
       terminal.loadAddon(fitAddon);
@@ -54,11 +86,34 @@ export function TerminalTab({ tab }: { tab: RightSidebarTab }) {
       session.terminal = terminal;
       session.fitAddon = fitAddon;
 
+      const flushStartupBuffer = () => {
+        if (startupDone || !startupBuffer) return;
+        const filtered = startupBuffer
+          .replace(
+            /^The default interactive shell is now zsh\.[\s\S]*?support\.apple\.com\/kb\/HT208050\.\r?\n?/m,
+            "",
+          )
+          .replace(/^\s*\r?\n+/, "");
+        startupBuffer = "";
+        startupDone = true;
+        if (filtered) terminal.write(filtered);
+      };
+
       const api = platform;
       const { id } = await api.ptySpawn({ cwd: tab.cwd, cols, rows });
       session.ptyId = id;
       session.unsubscribe = api.onPtyData(({ id: incomingId, data }) => {
-        if (incomingId === id) terminal.write(data);
+        if (incomingId !== id) return;
+        if (startupDone) {
+          terminal.write(data);
+          return;
+        }
+        startupBuffer += data;
+        if (startupTimer !== null) window.clearTimeout(startupTimer);
+        startupTimer = window.setTimeout(() => {
+          startupTimer = null;
+          flushStartupBuffer();
+        }, 80);
       });
       session.exitUnsub = api.onPtyExit(({ id: incomingId }) => {
         if (incomingId === id) terminal.write("\r\n\x1b[31m[process exited]\x1b[0m\r\n");
@@ -82,9 +137,16 @@ export function TerminalTab({ tab }: { tab: RightSidebarTab }) {
 
     return () => {
       cancelled = true;
+      if (startupTimer !== null) window.clearTimeout(startupTimer);
       disposeTerminalTab(tab.id, platform);
     };
   }, [platform, tab.cwd, tab.id]);
 
-  return <div className="terminal-container" ref={containerRef} />;
+  return (
+    <section className="terminal-panel">
+      <div className="terminal-surface">
+        <div className="terminal-container" ref={containerRef} />
+      </div>
+    </section>
+  );
 }

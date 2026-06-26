@@ -75,7 +75,7 @@ export type RightSidebarTab = {
 
 export type StoredRightSidebarTab = {
   id: string;
-  kind: "files" | "tree";
+  kind: "files" | "tree" | "terminal";
   title: string;
   cwd?: string;
 };

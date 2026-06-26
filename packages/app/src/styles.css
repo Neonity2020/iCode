@@ -1664,6 +1664,7 @@ kbd {
   min-height: 0;
   flex-direction: column;
   overflow: hidden;
+  background: #faf9f6;
 }
 .files-header {
   display: flex;
@@ -1679,14 +1680,73 @@ kbd {
 }
 
 /* Terminal */
+.terminal-panel {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  margin: 0;
+  overflow: hidden;
+  background: linear-gradient(180deg, #fbfbf8 0%, #f6f5f2 100%);
+}
 .terminal-container {
   flex: 1;
   min-height: 0;
-  background: #1c1c1a;
-  padding: 6px;
+  background: linear-gradient(180deg, #fbfbf8 0%, #f6f5f2 100%);
+}
+.terminal-surface {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+  padding: 8px 10px 12px;
+  background: linear-gradient(180deg, #fbfbf8 0%, #f6f5f2 100%);
+}
+.terminal-container .xterm {
+  height: 100%;
+}
+.terminal-container .xterm-screen {
+  outline: none;
+}
+.terminal-container .xterm-helper-textarea {
+  opacity: 0 !important;
+  cursor: text;
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 1px !important;
+  height: 1px !important;
+  border: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+  resize: none !important;
+  pointer-events: none;
 }
 .terminal-container .xterm-viewport {
   background: transparent !important;
+  scrollbar-width: thin;
+}
+.terminal-container .xterm-viewport::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.terminal-container .xterm-viewport::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.16);
+  background-clip: padding-box;
+}
+.terminal-container .xterm-rows {
+  padding-left: 2px;
+}
+.terminal-container .xterm-selection {
+  border-radius: 2px;
+}
+.terminal-container .xterm-accessibility {
+  pointer-events: none;
+}
+.terminal-container .xterm-accessibility-tree,
+.terminal-container .xterm-accessibility-tree * {
+  user-select: none !important;
 }
 
 /* File tree */

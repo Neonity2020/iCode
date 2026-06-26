@@ -22,6 +22,14 @@ const defaultSettings = {
 };
 let settingsCache = null;
 
+function getDefaultTerminalShell() {
+  return (
+    os.userInfo().shell?.trim() ||
+    process.env.SHELL?.trim() ||
+    (process.platform === "win32" ? "cmd.exe" : "/bin/zsh")
+  );
+}
+
 function settingsPath() {
   return path.join(app.getPath("userData"), "settings.json");
 }
@@ -452,9 +460,18 @@ ipcMain.handle(
     await loadPty();
     if (!ptyModule) throw new Error(ptyLoadError?.message ?? "node-pty 不可用");
     const configuredShell = settingsCache?.terminalShell?.trim();
-    const shellName =
-      requestedShell ?? (configuredShell || (process.platform === "win32" ? "cmd.exe" : "bash"));
-    const shellArgs = process.platform === "win32" ? [] : ["-l"];
+    const shellName = requestedShell ?? (configuredShell || getDefaultTerminalShell());
+    const shellBase = path.basename(shellName).toLowerCase();
+    const shellArgs =
+      process.platform === "win32"
+        ? []
+        : shellBase.includes("zsh")
+          ? []
+          : shellBase.includes("bash")
+            ? ["--noprofile", "--norc"]
+            : shellBase.includes("fish")
+              ? ["--no-config"]
+              : [];
     const id = String(nextPtyId++);
     const proc = ptyModule.spawn(shellName, shellArgs, {
       name: "xterm-256color",

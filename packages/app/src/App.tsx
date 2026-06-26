@@ -268,7 +268,7 @@ export function App() {
         const persistTabs: StoredRightSidebarTab[] = tabs
           .filter(
             (tab): tab is RightSidebarTab & { kind: StoredRightSidebarTab["kind"] } =>
-              tab.kind !== "terminal",
+              tab.kind === "files" || tab.kind === "tree" || tab.kind === "terminal",
           )
           .map((t) => ({ id: t.id, kind: t.kind, title: t.title, cwd: t.cwd }));
         persistState({
