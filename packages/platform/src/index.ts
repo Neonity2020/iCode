@@ -94,6 +94,7 @@ export type ICodePlatformApi = {
   }) => Promise<boolean>;
   onCodexEvent: (listener: (event: CodexEvent) => void) => () => void;
   openExternal: (url: string) => Promise<boolean>;
+  openPath: (filePath: string) => Promise<boolean>;
   revealInFinder: (filePath: string) => Promise<boolean>;
   platform: string;
   ptySpawn: (payload: {

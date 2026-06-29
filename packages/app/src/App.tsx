@@ -6,6 +6,7 @@ import {
   useState,
   type CSSProperties,
   type ClipboardEvent,
+  type ChangeEvent,
   type FormEvent,
 } from "react";
 import { Composer, type ComposerAttachment } from "./components/Composer";
@@ -42,6 +43,19 @@ function fileToDataUrl(file: File) {
     reader.readAsDataURL(file);
   });
 }
+
+function fileToText(file: File) {
+  return file.text();
+}
+
+const ATTACHMENT_IMAGE_TYPES = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/gif",
+  "image/webp",
+  "image/svg+xml",
+  "image/avif",
+]);
 
 function clipboardImageFiles(event: ClipboardEvent<HTMLTextAreaElement>) {
   const files = Array.from(event.clipboardData.files).filter((file) =>
@@ -136,6 +150,7 @@ export function App() {
   });
   const [composer, setComposer] = useState("");
   const [composerAttachments, setComposerAttachments] = useState<ComposerAttachment[]>([]);
+  const attachmentInputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [expandedFiles, setExpandedFiles] = useState<Record<string, boolean>>({});
   const [tabs, setTabs] = useState<RightSidebarTab[]>(() => appState.tabs.map((t) => ({ ...t })));
@@ -360,7 +375,7 @@ export function App() {
     event.preventDefault();
     const additions = files.map((file) => ({
       id: createAttachmentId(),
-      type: "image" as const,
+      kind: "image" as const,
       name: file.name || `clipboard-${Date.now()}.png`,
       url: "",
       status: "loading" as const,
@@ -389,6 +404,57 @@ export function App() {
     );
   }
 
+  async function handleAttachFilesChange(event: ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(event.target.files ?? []);
+    event.target.value = "";
+    if (files.length === 0) return;
+
+    const additions = files.map((file) => {
+      const kind = ATTACHMENT_IMAGE_TYPES.has(file.type) ? ("image" as const) : ("file" as const);
+      return {
+        id: createAttachmentId(),
+        kind,
+        name: file.name || `attachment-${Date.now()}`,
+        url: "",
+        text: "",
+        status: "loading" as const,
+      };
+    });
+    setComposerAttachments((current) => [...current, ...additions]);
+
+    await Promise.all(
+      additions.map(async (attachment, index) => {
+        const file = files[index];
+        try {
+          if (attachment.kind === "image") {
+            const dataUrl = await fileToDataUrl(file);
+            setComposerAttachments((current) =>
+              current.map((item) =>
+                item.id === attachment.id
+                  ? { ...item, url: dataUrl, status: "ready" as const }
+                  : item,
+              ),
+            );
+            return;
+          }
+
+          const text = await fileToText(file);
+          setComposerAttachments((current) =>
+            current.map((item) =>
+              item.id === attachment.id ? { ...item, text, status: "ready" as const } : item,
+            ),
+          );
+        } catch {
+          setComposerAttachments((current) =>
+            current.map((item) =>
+              item.id === attachment.id ? { ...item, status: "error" as const } : item,
+            ),
+          );
+        }
+      }),
+    );
+  }
+
   function removeComposerAttachment(id: string) {
     setComposerAttachments((current) => current.filter((attachment) => attachment.id !== id));
   }
@@ -397,7 +463,15 @@ export function App() {
     event.preventDefault();
     const content = composer.trim();
     const readyAttachments = composerAttachments.filter(
-      (attachment) => attachment.status === "ready" && attachment.url,
+      (attachment) =>
+        attachment.status === "ready" &&
+        attachment.kind === "image" &&
+        typeof attachment.url === "string" &&
+        attachment.url.length > 0,
+    );
+    const textAttachments = composerAttachments.filter(
+      (attachment) =>
+        attachment.status === "ready" && attachment.kind === "file" && attachment.text,
     );
     if (
       (!content && readyAttachments.length === 0) ||
@@ -409,17 +483,28 @@ export function App() {
     if (currentSessionActiveTurn) return;
     const sessionId = appState.activeSessionId;
     const userMessageId = `user-${Date.now()}`;
-    const pendingAttachments = readyAttachments.map((attachment) => ({ ...attachment }));
+    const pendingAttachments = composerAttachments.map((attachment) => ({ ...attachment }));
     sendingRef.current = true;
     setComposer("");
     setComposerAttachments([]);
     setError(null);
 
+    const attachmentText = textAttachments
+      .map((attachment) => `\n\n[附件: ${attachment.name}]\n${attachment.text}`)
+      .join("");
+    const attachmentSummary =
+      readyAttachments.length > 0
+        ? `${readyAttachments.length} 张图片`
+        : textAttachments.length > 0
+          ? `${textAttachments.length} 个文件`
+          : "";
     const input: UserInput[] = [
-      ...(content ? [{ type: "text" as const, text: content }] : []),
+      ...(content || attachmentText
+        ? [{ type: "text" as const, text: `${content}${attachmentText}`.trim() }]
+        : []),
       ...readyAttachments.map((attachment) => ({
         type: "image" as const,
-        url: attachment.url,
+        url: attachment.url as string,
       })),
     ];
 
@@ -431,9 +516,9 @@ export function App() {
               ...session,
               title:
                 session.title === "新任务"
-                  ? (content || `${readyAttachments.length} 张图片`).slice(0, 24)
+                  ? (content || attachmentSummary).slice(0, 24)
                   : session.title,
-              detail: (content || `${readyAttachments.length} 张图片`).slice(0, 36),
+              detail: (content || attachmentSummary).slice(0, 36),
               time: "刚刚",
               conversation: {
                 ...session.conversation,
@@ -442,10 +527,16 @@ export function App() {
                   {
                     id: userMessageId,
                     role: "user",
-                    content: content || (readyAttachments.length > 0 ? "已发送图片" : ""),
+                    content:
+                      content ||
+                      (readyAttachments.length > 0
+                        ? "已发送图片"
+                        : textAttachments.length > 0
+                          ? "已附加文件"
+                          : ""),
                     attachments: readyAttachments.map((attachment) => ({
                       type: "image",
-                      url: attachment.url,
+                      url: attachment.url as string,
                       name: attachment.name,
                     })),
                   },
@@ -638,6 +729,7 @@ export function App() {
           activities={activities}
           approvals={approvals}
           error={currentSession?.conversation.error ?? error ?? runtime.error}
+          basePath={workspacePath}
           activityBundleExpanded={activityBundleExpanded}
           expandedActivityIds={expandedActivityIds}
           onToggleActivityBundle={() =>
@@ -662,11 +754,20 @@ export function App() {
           onChange={setComposer}
           onPaste={handleComposerPaste}
           onSubmit={sendMessage}
+          onAttachFiles={() => attachmentInputRef.current?.click()}
           onSelectModel={(model) =>
             setAppState((current) => ({ ...current, selectedModel: model }))
           }
           onInterrupt={() => void interrupt()}
           onRemoveAttachment={removeComposerAttachment}
+        />
+        <input
+          ref={attachmentInputRef}
+          type="file"
+          hidden
+          multiple
+          accept="image/*,.txt,.md,.mdx,.json,.csv"
+          onChange={handleAttachFilesChange}
         />
       </main>
 

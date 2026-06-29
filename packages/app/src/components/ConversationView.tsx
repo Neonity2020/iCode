@@ -11,6 +11,7 @@ type ConversationViewProps = {
   activities: Activity[];
   approvals: Approval[];
   error: string | null;
+  basePath?: string;
   activityBundleExpanded: boolean;
   expandedActivityIds: Record<string, boolean>;
   onToggleActivityBundle: () => void;
@@ -24,6 +25,7 @@ export function ConversationView({
   activities,
   approvals,
   error,
+  basePath,
   activityBundleExpanded,
   expandedActivityIds,
   onToggleActivityBundle,
@@ -57,7 +59,7 @@ export function ConversationView({
                 )}
                 <div className="message-content">
                   {message.content ? (
-                    <MarkdownContent>{message.content}</MarkdownContent>
+                    <MarkdownContent basePath={basePath}>{message.content}</MarkdownContent>
                   ) : (
                     <span className="typing">
                       {message.role === "assistant" ? "Codex 正在思考…" : "已发送图片"}

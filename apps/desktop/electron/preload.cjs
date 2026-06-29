@@ -20,6 +20,7 @@ contextBridge.exposeInMainWorld("icode", {
     return () => ipcRenderer.removeListener("icode:codex-event", handler);
   },
   openExternal: (url) => ipcRenderer.invoke("icode:open-external", url),
+  openPath: (filePath) => ipcRenderer.invoke("icode:open-path", filePath),
   revealInFinder: (filePath) => ipcRenderer.invoke("icode:reveal-in-finder", filePath),
   ptySpawn: (payload) => ipcRenderer.invoke("icode:pty-spawn", payload),
   ptyWrite: (payload) => ipcRenderer.invoke("icode:pty-write", payload),

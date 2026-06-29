@@ -1361,6 +1361,24 @@ kbd {
   height: 92px;
   object-fit: cover;
 }
+.composer-attachment-file {
+  display: grid;
+  min-height: 92px;
+  place-items: center;
+  gap: 8px;
+  padding: 12px 10px 22px;
+  color: #454540;
+  text-align: center;
+}
+.composer-attachment-file span {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  font-size: 11px;
+  line-height: 1.35;
+  word-break: break-word;
+}
 .composer-attachment.loading img,
 .composer-attachment.error img {
   opacity: 0.5;

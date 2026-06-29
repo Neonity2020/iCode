@@ -583,6 +583,12 @@ ipcMain.handle("icode:open-external", async (_event, url) => {
   return true;
 });
 
+ipcMain.handle("icode:open-path", async (_event, filePath) => {
+  if (typeof filePath !== "string" || !filePath.trim()) return false;
+  await shell.openPath(filePath);
+  return true;
+});
+
 ipcMain.handle("icode:reveal-in-finder", (_event, filePath) => {
   if (typeof filePath !== "string" || !filePath.trim()) return false;
   shell.showItemInFolder(filePath);

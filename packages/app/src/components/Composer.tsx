@@ -1,10 +1,14 @@
-import { ArrowUp, ChevronDown, Paperclip, Square } from "lucide-react";
+import { ArrowUp, ChevronDown, FileText, Paperclip, Square } from "lucide-react";
 import { useEffect, useRef, useState, type ClipboardEvent, type FormEvent } from "react";
 import { MODEL_OPTIONS } from "../config/app";
-import type { MessageAttachment, ModelId, RuntimeStatus } from "../domain/types";
+import type { ModelId, RuntimeStatus } from "../domain/types";
 
-export type ComposerAttachment = MessageAttachment & {
+export type ComposerAttachment = {
   id: string;
+  kind: "image" | "file";
+  name: string;
+  url?: string;
+  text?: string;
   status: "loading" | "ready" | "error";
 };
 
@@ -18,6 +22,7 @@ type ComposerProps = {
   onChange: (value: string) => void;
   onPaste: (event: ClipboardEvent<HTMLTextAreaElement>) => void;
   onSubmit: (event: FormEvent) => void;
+  onAttachFiles: () => void;
   onSelectModel: (model: ModelId) => void;
   onInterrupt: () => void;
   onRemoveAttachment: (id: string) => void;
@@ -33,6 +38,7 @@ export function Composer({
   onChange,
   onPaste,
   onSubmit,
+  onAttachFiles,
   onSelectModel,
   onInterrupt,
   onRemoveAttachment,
@@ -77,7 +83,7 @@ export function Composer({
           }}
         />
         {attachments.length > 0 && (
-          <div className="composer-attachments" aria-label="已附加图片">
+          <div className="composer-attachments" aria-label="已附加文件">
             {attachments.map((attachment, index) => (
               <div className={`composer-attachment ${attachment.status}`} key={attachment.id}>
                 <button
@@ -85,22 +91,33 @@ export function Composer({
                   type="button"
                   onClick={() => onRemoveAttachment(attachment.id)}
                   aria-label={`移除图片 ${index + 1}`}
-                >
+                  >
                   ×
                 </button>
-                <img src={attachment.url} alt={attachment.name ?? `图片 ${index + 1}`} />
-                {attachment.status !== "ready" && (
-                  <span className="composer-attachment-state">
-                    {attachment.status === "loading" ? "读取中" : "读取失败"}
-                  </span>
+                {attachment.kind === "image" ? (
+                  <img src={attachment.url} alt={attachment.name ?? `图片 ${index + 1}`} />
+                ) : (
+                  <div className="composer-attachment-file">
+                    <FileText size={18} />
+                    <span>{attachment.name}</span>
+                  </div>
                 )}
+                <span className="composer-attachment-state">
+                  {attachment.status === "loading"
+                    ? "读取中"
+                    : attachment.status === "error"
+                      ? "读取失败"
+                      : attachment.kind === "image"
+                        ? "图片"
+                        : "文件"}
+                </span>
               </div>
             ))}
           </div>
         )}
         <div className="composer-toolbar">
           <div>
-            <button className="tool-button" type="button">
+            <button className="tool-button" type="button" onClick={onAttachFiles} aria-label="添加附件">
               <Paperclip size={16} />
             </button>
             <div className="model-picker" ref={pickerRef}>
