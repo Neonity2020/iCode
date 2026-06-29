@@ -1,6 +1,6 @@
 import type { ModelId } from "../domain/types";
 
-export const STORAGE_KEY = "icode.conversations.v1";
+export const STORAGE_KEY = "icode.conversations.v2";
 
 export const DEFAULT_MODEL: ModelId = "gpt-5.5";
 

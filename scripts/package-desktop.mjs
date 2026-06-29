@@ -150,7 +150,7 @@ async function packageMacArm64Dmg() {
   await cp(electronTemplatePath, appBundlePath, {
     recursive: true,
     force: true,
-    dereference: true,
+    verbatimSymlinks: true,
   });
   await copyRuntimeAppFiles();
   await buildMacIcon();
@@ -196,7 +196,7 @@ async function packageMacArm64Dmg() {
   await cp(appBundlePath, stagedAppBundlePath, {
     recursive: true,
     force: true,
-    dereference: true,
+    verbatimSymlinks: true,
   });
   await symlink("/Applications", path.join(stagingDirectory, "Applications"));
 

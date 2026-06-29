@@ -10,9 +10,9 @@ import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
 
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
 const desktopDirectory = path.resolve(currentDirectory, "..");
-const projectDirectory = path.resolve(desktopDirectory, "../..");
+const defaultWorkspaceDirectory = path.join(os.homedir(), "iCode");
 const windows = new Set();
-let selectedWorkspace = projectDirectory;
+let selectedWorkspace = defaultWorkspaceDirectory;
 const appRunId = randomUUID();
 const supportedModels = new Set(["gpt-5.5", "gpt-5.4", "gpt-5.4-mini"]);
 const defaultSettings = {
@@ -718,6 +718,8 @@ ipcMain.handle("icode:settings-reset", () => saveSettings(defaultSettings));
 
 app.whenReady().then(async () => {
   await readSettings();
+  await mkdir(defaultWorkspaceDirectory, { recursive: true });
+  selectedWorkspace = defaultWorkspaceDirectory;
   createWindow();
   void codex.start().catch(() => {});
   app.on("activate", () => {
