@@ -1,15 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
-import {
-  cp,
-  lstat,
-  mkdir,
-  readdir,
-  readFile,
-  rm,
-  symlink,
-  writeFile,
-} from "node:fs/promises";
+import { cp, lstat, mkdir, readdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 

@@ -44,7 +44,8 @@ function createScheduledTaskId() {
 function nextScheduledRun(task: Pick<ScheduledTask, "schedule" | "intervalMinutes" | "nextRunAt">) {
   if (task.schedule === "daily") {
     const next = new Date(task.nextRunAt);
-    if (!Number.isFinite(next.getTime())) return new Date(Date.now() + 24 * 60 * 60_000).toISOString();
+    if (!Number.isFinite(next.getTime()))
+      return new Date(Date.now() + 24 * 60 * 60_000).toISOString();
     while (next.getTime() <= Date.now()) next.setDate(next.getDate() + 1);
     return next.toISOString();
   }

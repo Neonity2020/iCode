@@ -1,7 +1,7 @@
 const highlights = [
   { value: "Open Source", label: "开源可改造的 Codex 桌面端" },
   { value: "Desktop First", label: "围绕本地工作区设计" },
-  { value: "Shared UI", label: "桌面与 Web 复用同一套 React 产品层" },
+  { value: "Landing Page", label: "官网落地页展示项目方向" },
 ];
 
 const features = [
@@ -16,16 +16,16 @@ const features = [
     copy: "本地文件系统、PTY 终端、Finder 跳转和 Codex 审批请求都通过平台能力层统一接入。",
   },
   {
-    eyebrow: "Monorepo",
-    title: "Web 与桌面共享同一套产品代码",
-    copy: "React UI、状态管理、Codex 事件处理和业务逻辑集中在共享包中，方便维护和二次分发。",
+    eyebrow: "Website",
+    title: "官网落地页和桌面端同仓维护",
+    copy: "Web 目录当前承载项目介绍、能力展示和快速开始内容，不作为桌面工作台的 Web 版入口。",
   },
 ];
 
 const proofPoints = [
   "开源仓库结构清晰，适合 Fork、定制和内部部署",
   "桌面端优先，聚合工作区、终端、文件树和审批流",
-  "Web 端复用同一套共享 UI，便于扩展到更多平台",
+  "官网落地页展示产品方向，便于对外介绍和传播",
 ];
 
 const capabilities = [

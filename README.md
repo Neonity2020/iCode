@@ -1,14 +1,14 @@
 # iCode
 
 iCode 是一个面向 Codex 的桌面工作台，使用 pnpm monorepo 组织代码。
-当前仓库包含 Electron 桌面应用、Web 入口页，以及共享的应用层和平台契约。
+当前仓库包含 Electron 桌面应用、官网 Landing Page，以及共享的应用层和平台契约。
 
 ## 项目结构
 
 ```text
 apps/
   desktop/          # Electron 主进程、preload、桌面渲染入口
-  web/              # Web 入口页
+  web/              # 官网 Landing Page
 packages/
   app/              # 共享的 React UI、状态、业务逻辑
   platform/         # 跨端平台能力接口与协议类型
@@ -19,6 +19,21 @@ scripts/
 
 `packages/app` 通过 `PlatformProvider` 读取 `@icode/platform` 定义的能力，不直接依赖
 Electron 或 `window.icode`。桌面端负责提供本地文件系统、PTY 终端和 Codex CLI 能力。
+
+## 代码规模
+
+按 git 跟踪的源码文件统计，排除 Markdown 文档、lockfile、JSON 配置、缓存目录和未跟踪文件：
+
+| 类型     | 文件数 | 物理行数 |   非空行 |
+| -------- | -----: | -------: | -------: |
+| `.tsx`   |     18 |     3395 |     3210 |
+| `.css`   |      2 |     3123 |     3001 |
+| `.ts`    |     14 |     1170 |     1071 |
+| `.mjs`   |      5 |     1158 |     1047 |
+| `.html`  |      3 |      396 |      381 |
+| `.py`    |      1 |      121 |       99 |
+| `.cjs`   |      1 |       46 |       45 |
+| **合计** | **44** | **9409** | **8854** |
 
 ## 快速开始
 
@@ -34,7 +49,7 @@ pnpm install
 pnpm dev
 ```
 
-启动 Web 入口页：
+启动官网 Landing Page：
 
 ```bash
 pnpm dev:web
@@ -46,7 +61,7 @@ pnpm dev:web
 - `pnpm check`，运行类型检查和工程检查
 - `pnpm build`，构建所有包和应用
 - `pnpm build:desktop`，仅构建桌面应用
-- `pnpm build:web`，仅构建 Web 入口页
+- `pnpm build:web`，仅构建官网 Landing Page
 - `pnpm preview:web`，预览 Web 构建结果
 
 默认端口：

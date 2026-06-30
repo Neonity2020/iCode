@@ -91,7 +91,7 @@ export function Composer({
                   type="button"
                   onClick={() => onRemoveAttachment(attachment.id)}
                   aria-label={`移除图片 ${index + 1}`}
-                  >
+                >
                   ×
                 </button>
                 {attachment.kind === "image" ? (
@@ -117,7 +117,12 @@ export function Composer({
         )}
         <div className="composer-toolbar">
           <div>
-            <button className="tool-button" type="button" onClick={onAttachFiles} aria-label="添加附件">
+            <button
+              className="tool-button"
+              type="button"
+              onClick={onAttachFiles}
+              aria-label="添加附件"
+            >
               <Paperclip size={16} />
             </button>
             <div className="model-picker" ref={pickerRef}>

@@ -55,7 +55,9 @@ export function ScheduledTasksTab({
   const [prompt, setPrompt] = useState("");
   const [schedule, setSchedule] = useState<ScheduledTask["schedule"]>("interval");
   const [intervalMinutes, setIntervalMinutes] = useState(60);
-  const [nextRunAt, setNextRunAt] = useState(() => toDateTimeLocal(new Date(Date.now() + 60 * 60_000)));
+  const [nextRunAt, setNextRunAt] = useState(() =>
+    toDateTimeLocal(new Date(Date.now() + 60 * 60_000)),
+  );
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<ScheduledTaskInput | null>(null);
 

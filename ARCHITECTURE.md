@@ -9,7 +9,7 @@ apps/web ─────┘
 ```
 
 - `apps/desktop` owns Electron, native process lifecycle, IPC, filesystem, and PTY access.
-- `apps/web` owns browser bootstrap and the future remote service adapter.
+- `apps/web` owns the public landing page and browser build.
 - `packages/app` owns the product UI, state, hooks, and cross-platform behavior.
 - `packages/platform` owns the contract between product code and a host environment.
 
@@ -37,7 +37,7 @@ depend on `state`. Domain and library modules must not import components or hook
 host supports local workspace selection, filesystem access, and terminals.
 
 - Desktop satisfies the contract through `apps/desktop/electron/preload.cjs`.
-- Web satisfies the same contract through `apps/web/src/platform.ts`.
+- The current web app is a landing page and does not mount the shared product workspace.
 
 Platform-specific behavior should be added to an app adapter first. Shared product code should
 only change when the behavior is genuinely common to both applications.
@@ -51,6 +51,6 @@ only change when the behavior is genuinely common to both applications.
 - Filesystem tree: `packages/app/src/components/FileTreeTab.tsx`
 - PTY lifecycle: `packages/app/src/components/TerminalTab.tsx`
 - Desktop Codex process: `apps/desktop/electron/main.mjs`
-- Web service adapter: `apps/web/src/platform.ts`
+- Landing page UI: `apps/web/src/LandingPage.tsx`
 
 Run `pnpm check` and `pnpm build` after structural changes.

@@ -1989,7 +1989,7 @@ kbd {
   cursor: pointer;
 }
 .schedule-actions button:hover:not(:disabled) {
-  background: #ededE8;
+  background: #edede8;
   color: #2e2e2b;
 }
 .schedule-actions button:disabled {

@@ -1,6 +1,11 @@
 import { CalendarClock, FolderTree, Plus, TerminalSquare, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import type { FileChange, RightSidebarTab, RightSidebarTabKind, ScheduledTask } from "../domain/types";
+import type {
+  FileChange,
+  RightSidebarTab,
+  RightSidebarTabKind,
+  ScheduledTask,
+} from "../domain/types";
 import { FileChangesPanel } from "./FileChangesPanel";
 import { FileTreeTab } from "./FileTreeTab";
 import { ScheduledTasksTab, type ScheduledTaskInput } from "./ScheduledTasksTab";
