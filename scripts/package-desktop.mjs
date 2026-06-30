@@ -1,6 +1,15 @@
 import { spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
-import { cp, mkdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import {
+  cp,
+  lstat,
+  mkdir,
+  readdir,
+  readFile,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -135,6 +144,76 @@ async function addOrSetPlistKey(plistPath, key, value) {
   }
 }
 
+async function dedupeFrameworkVersions(frameworkPath) {
+  // Electron 40 ships its macOS frameworks with `Versions/Current` already
+  // expanded into a real directory whose contents are identical to `Versions/A`.
+  // That roughly doubles the bundle size compared to the historical layout
+  // (where `Current` was a symlink to `A`). Restore the symlink layout, and
+  // also replace the duplicated top-level entries with symlinks into
+  // `Versions/Current/<name>`, so the framework occupies its real footprint.
+  const versionsDirectory = path.join(frameworkPath, "Versions");
+  let versionsStat;
+  try {
+    versionsStat = await lstat(versionsDirectory);
+  } catch {
+    return;
+  }
+  if (!versionsStat.isDirectory()) return;
+
+  const currentLink = path.join(versionsDirectory, "Current");
+  const aDirectory = path.join(versionsDirectory, "A");
+  let currentStat;
+  try {
+    currentStat = await lstat(currentLink);
+  } catch {
+    return;
+  }
+
+  if (currentStat.isSymbolicLink()) return;
+
+  await rm(currentLink, { recursive: true, force: true });
+  await symlink("A", currentLink);
+
+  let topLevelEntries;
+  try {
+    topLevelEntries = await readdir(frameworkPath);
+  } catch {
+    return;
+  }
+
+  for (const entry of topLevelEntries) {
+    if (entry === "Versions") continue;
+    const entryPath = path.join(frameworkPath, entry);
+    let entryStat;
+    try {
+      entryStat = await lstat(entryPath);
+    } catch {
+      continue;
+    }
+    if (entryStat.isSymbolicLink()) continue;
+    const targetPath = path.join("Versions", "Current", entry);
+    await rm(entryPath, { recursive: true, force: true });
+    await symlink(targetPath, entryPath);
+  }
+
+  // Silence unused-variable warning when A doesn't exist for some reason.
+  void aDirectory;
+}
+
+async function dedupeAppBundlesFrameworks(bundlePath) {
+  const frameworksDirectory = path.join(bundlePath, "Contents", "Frameworks");
+  let entries;
+  try {
+    entries = await readdir(frameworksDirectory);
+  } catch {
+    return;
+  }
+  for (const entry of entries) {
+    if (!entry.endsWith(".framework")) continue;
+    await dedupeFrameworkVersions(path.join(frameworksDirectory, entry));
+  }
+}
+
 async function packageMacArm64Dmg() {
   if (process.platform !== "darwin") {
     throw new Error("macOS dmg packaging is only supported on darwin");
@@ -152,6 +231,7 @@ async function packageMacArm64Dmg() {
     force: true,
     verbatimSymlinks: true,
   });
+  await dedupeAppBundlesFrameworks(appBundlePath);
   await copyRuntimeAppFiles();
   await buildMacIcon();
 
@@ -198,6 +278,7 @@ async function packageMacArm64Dmg() {
     force: true,
     verbatimSymlinks: true,
   });
+  await dedupeAppBundlesFrameworks(stagedAppBundlePath);
   await symlink("/Applications", path.join(stagingDirectory, "Applications"));
 
   const dmgPath = path.join(releaseDirectory, `iCode-${appVersion}-mac-arm64.dmg`);
