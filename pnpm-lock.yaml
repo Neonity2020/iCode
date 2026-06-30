@@ -279,14 +279,8 @@ importers:
         specifier: ^0.2.1
         version: 0.2.1(@types/node@25.9.4)(typescript@6.0.3)(vite@8.0.16(@types/node@25.9.4))
 
-  apps/web:
+  marketing:
     dependencies:
-      '@icode/app':
-        specifier: workspace:*
-        version: link:../../packages/app
-      '@icode/platform':
-        specifier: workspace:*
-        version: link:../../packages/platform
       react:
         specifier: 19.2.4
         version: 19.2.4

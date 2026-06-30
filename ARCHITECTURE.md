@@ -5,11 +5,11 @@
 ```text
 apps/desktop ─┐
               ├──> packages/app ───> packages/platform
-apps/web ─────┘
+marketing
 ```
 
 - `apps/desktop` owns Electron, native process lifecycle, IPC, filesystem, and PTY access.
-- `apps/web` owns the public landing page and browser build.
+- `marketing` owns the public landing page and browser build.
 - `packages/app` owns the product UI, state, hooks, and cross-platform behavior.
 - `packages/platform` owns the contract between product code and a host environment.
 
@@ -51,6 +51,6 @@ only change when the behavior is genuinely common to both applications.
 - Filesystem tree: `packages/app/src/components/FileTreeTab.tsx`
 - PTY lifecycle: `packages/app/src/components/TerminalTab.tsx`
 - Desktop Codex process: `apps/desktop/electron/main.mjs`
-- Landing page UI: `apps/web/src/LandingPage.tsx`
+- Marketing landing page: `marketing/src/main.tsx`
 
 Run `pnpm check` and `pnpm build` after structural changes.

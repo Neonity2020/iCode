@@ -78,7 +78,7 @@ Codex CLI 是开源的，而且非常强。
 从工程结构上，iCode 使用 pnpm monorepo：
 
 - `apps/desktop` 负责 Electron 桌面端
-- `apps/web` 负责官网 Landing Page
+- `marketing` 负责官网 Landing Page
 - `packages/app` 负责共享 React 产品层
 - `packages/platform` 负责跨端平台能力契约
 

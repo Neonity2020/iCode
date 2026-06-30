@@ -1,7 +1,8 @@
 {
-  "name": "@icode/web",
-  "version": "0.0.0",
+  "name": "@icode/marketing",
+  "version": "0.0.1",
   "private": true,
+  "description": "iCode marketing landing page",
   "type": "module",
   "scripts": {
     "dev": "vp dev",
@@ -10,8 +11,6 @@
     "preview": "vp preview"
   },
   "dependencies": {
-    "@icode/app": "workspace:*",
-    "@icode/platform": "workspace:*",
     "react": "19.2.4",
     "react-dom": "19.2.4"
   },

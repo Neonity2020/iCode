@@ -1,2 +1,2 @@
-export function getDevPort(target?: "desktop" | "web"): number;
-export function getDevServerUrl(target?: "desktop" | "web"): string;
+export function getDevPort(target?: "desktop" | "marketing"): number;
+export function getDevServerUrl(target?: "desktop" | "marketing"): string;

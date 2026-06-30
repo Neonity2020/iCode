@@ -4,18 +4,21 @@ import { fileURLToPath } from "node:url";
 
 const projectDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const [, , appName, command] = process.argv;
-const supportedApps = new Set(["desktop", "web"]);
+const supportedApps = new Set(["desktop", "marketing"]);
 const supportedCommands = new Set(["dev", "build", "preview", "start"]);
 
 if (!supportedApps.has(appName) || !supportedCommands.has(command)) {
-  throw new Error("Usage: node scripts/run-app.mjs <desktop|web> <dev|build|preview|start>");
+  throw new Error("Usage: node scripts/run-app.mjs <desktop|marketing> <dev|build|preview|start>");
 }
 
 if (command === "start" && appName !== "desktop") {
   throw new Error("Only the desktop app supports start");
 }
 
-const appDirectory = path.join(projectDirectory, "apps", appName);
+const appDirectory =
+  appName === "desktop"
+    ? path.join(projectDirectory, "apps", "desktop")
+    : path.join(projectDirectory, "marketing");
 const entry =
   command === "start"
     ? path.join(projectDirectory, "node_modules", "electron", "cli.js")
