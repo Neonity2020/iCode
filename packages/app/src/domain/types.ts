@@ -64,7 +64,7 @@ export type CodexItem = Record<string, unknown> & {
   status?: string;
 };
 
-export type RightSidebarTabKind = "files" | "terminal" | "tree";
+export type RightSidebarTabKind = "files" | "terminal" | "tree" | "scheduled";
 
 export type RightSidebarTab = {
   id: string;
@@ -75,9 +75,25 @@ export type RightSidebarTab = {
 
 export type StoredRightSidebarTab = {
   id: string;
-  kind: "files" | "tree" | "terminal";
+  kind: "files" | "tree" | "terminal" | "scheduled";
   title: string;
   cwd?: string;
+};
+
+export type ScheduledTaskStatus = "idle" | "running" | "completed" | "failed";
+export type ScheduledTaskSchedule = "interval" | "daily";
+
+export type ScheduledTask = {
+  id: string;
+  title: string;
+  prompt: string;
+  schedule: ScheduledTaskSchedule;
+  intervalMinutes: number;
+  nextRunAt: string;
+  enabled: boolean;
+  lastRunAt?: string;
+  lastStatus: ScheduledTaskStatus;
+  lastError?: string;
 };
 
 export type StoredState = {
@@ -93,6 +109,7 @@ export type StoredState = {
   tabs: StoredRightSidebarTab[];
   activeTabId: string;
   expandedDirs: string[];
+  scheduledTasks: ScheduledTask[];
 };
 
 export type DirNode = {

@@ -2,6 +2,7 @@ import { DEFAULT_MODEL, MODEL_OPTIONS, PANEL_WIDTHS, STORAGE_KEY } from "../conf
 import type {
   Conversation,
   ModelId,
+  ScheduledTask,
   Session,
   StoredRightSidebarTab,
   StoredState,
@@ -14,12 +15,96 @@ function normalizeModel(value: unknown): ModelId {
 }
 
 export function defaultTabs(): StoredRightSidebarTab[] {
-  return [{ id: "files", kind: "files", title: "文件变更" }];
+  return [
+    { id: "files", kind: "files", title: "文件变更" },
+    { id: "scheduled", kind: "scheduled", title: "定时任务" },
+  ];
+}
+
+function defaultTabTitle(kind: StoredRightSidebarTab["kind"]) {
+  if (kind === "tree") return "文件树";
+  if (kind === "terminal") return "终端";
+  if (kind === "scheduled") return "定时任务";
+  return "文件变更";
+}
+
+function normalizeStoredTabs(raw: unknown): StoredRightSidebarTab[] {
+  const tabs: StoredRightSidebarTab[] = Array.isArray(raw)
+    ? raw.flatMap((entry) => {
+        if (!entry || typeof entry !== "object") return [];
+        const item = entry as Record<string, unknown>;
+        const id = typeof item.id === "string" && item.id ? item.id : "";
+        const kind =
+          item.kind === "tree" || item.kind === "terminal" || item.kind === "scheduled"
+            ? item.kind
+            : item.kind === "files"
+              ? "files"
+              : null;
+        if (!id || !kind) return [];
+        return [
+          {
+            id,
+            kind,
+            title: typeof item.title === "string" ? item.title : defaultTabTitle(kind),
+            cwd: typeof item.cwd === "string" && item.cwd ? item.cwd : undefined,
+          },
+        ];
+      })
+    : [];
+  const seen = new Set<string>();
+  const unique = tabs.filter((tab) => {
+    if (seen.has(tab.id)) return false;
+    seen.add(tab.id);
+    return true;
+  });
+  for (const tab of defaultTabs()) {
+    if (!unique.some((entry) => entry.id === tab.id)) unique.push(tab);
+  }
+  return unique;
 }
 
 function normalizeExpandedDirs(raw: unknown): string[] {
   if (!Array.isArray(raw)) return [];
   return [...new Set(raw.filter((entry): entry is string => typeof entry === "string" && !!entry))];
+}
+
+function normalizeScheduledTasks(raw: unknown): ScheduledTask[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.flatMap((entry) => {
+    if (!entry || typeof entry !== "object") return [];
+    const item = entry as Record<string, unknown>;
+    const id = typeof item.id === "string" && item.id ? item.id : "";
+    const title = typeof item.title === "string" ? item.title.trim() : "";
+    const prompt = typeof item.prompt === "string" ? item.prompt.trim() : "";
+    const schedule = item.schedule === "daily" ? "daily" : "interval";
+    const rawIntervalMinutes = Number(item.intervalMinutes);
+    const intervalMinutes = Number.isFinite(rawIntervalMinutes) ? rawIntervalMinutes : 60;
+    const nextRunAt = typeof item.nextRunAt === "string" ? item.nextRunAt : "";
+    const nextRunTime = Date.parse(nextRunAt);
+    if (!id || !title || !prompt || !Number.isFinite(nextRunTime)) {
+      return [];
+    }
+    const lastStatus =
+      item.lastStatus === "running" ||
+      item.lastStatus === "completed" ||
+      item.lastStatus === "failed"
+        ? item.lastStatus
+        : "idle";
+    return [
+      {
+        id,
+        title,
+        prompt,
+        schedule,
+        intervalMinutes: Math.max(1, Math.round(intervalMinutes)),
+        nextRunAt: new Date(nextRunTime).toISOString(),
+        enabled: item.enabled !== false,
+        lastRunAt: typeof item.lastRunAt === "string" ? item.lastRunAt : undefined,
+        lastStatus,
+        lastError: typeof item.lastError === "string" ? item.lastError : undefined,
+      },
+    ];
+  });
 }
 
 export function emptyConversation(): Conversation {
@@ -59,6 +144,7 @@ export function loadStoredState(): StoredState {
     tabs: defaultTabs(),
     activeTabId: "files",
     expandedDirs: [],
+    scheduledTasks: [],
   };
   if (typeof window === "undefined") return fallback;
   for (const key of OLD_STORAGE_KEYS) window.localStorage.removeItem(key);
@@ -71,7 +157,7 @@ export function loadStoredState(): StoredState {
       Array.isArray(parsed.sessions) && parsed.sessions.length > 0
         ? parsed.sessions
         : [fallbackSession];
-    const tabs = Array.isArray(parsed.tabs) && parsed.tabs.length > 0 ? parsed.tabs : defaultTabs();
+    const tabs = normalizeStoredTabs(parsed.tabs);
     const activeTabId = tabs.some((tab) => tab.id === parsed.activeTabId)
       ? String(parsed.activeTabId)
       : tabs[0].id;
@@ -100,6 +186,7 @@ export function loadStoredState(): StoredState {
       tabs,
       activeTabId,
       expandedDirs: normalizeExpandedDirs(parsed.expandedDirs),
+      scheduledTasks: normalizeScheduledTasks(parsed.scheduledTasks),
     };
   } catch {
     return fallback;

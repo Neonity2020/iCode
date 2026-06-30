@@ -1,6 +1,7 @@
 import {
   ArrowLeft,
   Bot,
+  CalendarClock,
   RotateCcw,
   Settings,
   SlidersHorizontal,
@@ -10,20 +11,28 @@ import {
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { AppSettings, ModelId, SkillInfo } from "@icode/platform";
 import { MODEL_OPTIONS } from "../config/app";
+import type { ScheduledTask } from "../domain/types";
 import { usePlatform } from "../platform/PlatformContext";
+import { ScheduledTasksTab, type ScheduledTaskInput } from "./ScheduledTasksTab";
 
-export type SettingsSection = "general" | "codex" | "terminal" | "skills";
+export type SettingsSection = "general" | "codex" | "terminal" | "scheduled" | "skills";
 
 type SettingsViewProps = {
   initialSection?: SettingsSection;
+  scheduledTasks: ScheduledTask[];
   onClose: () => void;
   onDefaultModelChange: (model: ModelId) => void;
+  onCreateScheduledTask: (task: ScheduledTaskInput) => void;
+  onUpdateScheduledTask: (id: string, patch: Partial<ScheduledTask>) => void;
+  onDeleteScheduledTask: (id: string) => void;
+  onRunScheduledTaskNow: (id: string) => void;
 };
 
 const sections: { id: SettingsSection; label: string; icon: typeof Settings }[] = [
   { id: "general", label: "通用", icon: SlidersHorizontal },
   { id: "codex", label: "Codex", icon: Bot },
   { id: "terminal", label: "终端", icon: Terminal },
+  { id: "scheduled", label: "定时任务", icon: CalendarClock },
   { id: "skills", label: "Skills", icon: Sparkles },
 ];
 
@@ -36,8 +45,13 @@ const skillSourceLabels: Record<SkillInfo["source"], string> = {
 
 export function SettingsView({
   initialSection = "general",
+  scheduledTasks,
   onClose,
   onDefaultModelChange,
+  onCreateScheduledTask,
+  onUpdateScheduledTask,
+  onDeleteScheduledTask,
+  onRunScheduledTaskNow,
 }: SettingsViewProps) {
   const platform = usePlatform();
   const [activeSection, setActiveSection] = useState<SettingsSection>(initialSection);
@@ -223,6 +237,18 @@ export function SettingsView({
                       }
                     />
                   </SettingRow>
+                </div>
+              )}
+
+              {activeSection === "scheduled" && (
+                <div className="settings-schedule">
+                  <ScheduledTasksTab
+                    tasks={scheduledTasks}
+                    onCreate={onCreateScheduledTask}
+                    onUpdate={onUpdateScheduledTask}
+                    onDelete={onDeleteScheduledTask}
+                    onRunNow={onRunScheduledTaskNow}
+                  />
                 </div>
               )}
 

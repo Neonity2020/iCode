@@ -13,6 +13,7 @@ import { Composer, type ComposerAttachment } from "./components/Composer";
 import { ConversationView } from "./components/ConversationView";
 import { LeftSidebar } from "./components/LeftSidebar";
 import { RightSidebar } from "./components/RightSidebar";
+import type { ScheduledTaskInput } from "./components/ScheduledTasksTab";
 import { SettingsView, type SettingsSection } from "./components/SettingsView";
 import { disposeTerminalTab } from "./components/TerminalTab";
 import { Topbar } from "./components/Topbar";
@@ -22,6 +23,7 @@ import type {
   RightSidebarTab,
   RightSidebarTabKind,
   RuntimeStatus,
+  ScheduledTask,
   StoredRightSidebarTab,
   StoredState,
 } from "./domain/types";
@@ -33,6 +35,20 @@ import { buildSession, loadStoredState, persistState } from "./state/persistence
 
 function createAttachmentId() {
   return `attachment-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function createScheduledTaskId() {
+  return `schedule-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function nextScheduledRun(task: Pick<ScheduledTask, "schedule" | "intervalMinutes" | "nextRunAt">) {
+  if (task.schedule === "daily") {
+    const next = new Date(task.nextRunAt);
+    if (!Number.isFinite(next.getTime())) return new Date(Date.now() + 24 * 60 * 60_000).toISOString();
+    while (next.getTime() <= Date.now()) next.setDate(next.getDate() + 1);
+    return next.toISOString();
+  }
+  return new Date(Date.now() + Math.max(1, task.intervalMinutes) * 60_000).toISOString();
 }
 
 function fileToDataUrl(file: File) {
@@ -284,7 +300,10 @@ export function App() {
         const persistTabs: StoredRightSidebarTab[] = tabs
           .filter(
             (tab): tab is RightSidebarTab & { kind: StoredRightSidebarTab["kind"] } =>
-              tab.kind === "files" || tab.kind === "tree" || tab.kind === "terminal",
+              tab.kind === "files" ||
+              tab.kind === "tree" ||
+              tab.kind === "terminal" ||
+              tab.kind === "scheduled",
           )
           .map((t) => ({ id: t.id, kind: t.kind, title: t.title, cwd: t.cwd }));
         persistState({
@@ -315,6 +334,25 @@ export function App() {
   useEffect(() => {
     setExpandedActivityIds({});
   }, [currentSession?.id]);
+
+  useEffect(() => {
+    if (runtime.state !== "ready") return;
+    const tick = () => {
+      if (sendingRef.current || runningTurnRef.current) return;
+      const now = Date.now();
+      const dueTask = appState.scheduledTasks.find(
+        (task) =>
+          task.enabled &&
+          task.lastStatus !== "running" &&
+          Date.parse(task.nextRunAt) <= now &&
+          task.prompt.trim(),
+      );
+      if (dueTask) void runScheduledTask(dueTask.id);
+    };
+    tick();
+    const interval = window.setInterval(tick, 30_000);
+    return () => window.clearInterval(interval);
+  }, [appState.scheduledTasks, runtime.state]);
 
   const handleToggleExpand = useCallback((path: string, open: boolean) => {
     setExpandedDirs((current) => {
@@ -457,6 +495,145 @@ export function App() {
 
   function removeComposerAttachment(id: string) {
     setComposerAttachments((current) => current.filter((attachment) => attachment.id !== id));
+  }
+
+  function createScheduledTask(input: ScheduledTaskInput) {
+    const task: ScheduledTask = {
+      id: createScheduledTaskId(),
+      title: input.title,
+      prompt: input.prompt,
+      schedule: input.schedule,
+      intervalMinutes: Math.max(1, Math.round(input.intervalMinutes)),
+      nextRunAt: input.nextRunAt,
+      enabled: true,
+      lastStatus: "idle",
+    };
+    setAppState((current) => ({
+      ...current,
+      scheduledTasks: [task, ...current.scheduledTasks],
+    }));
+  }
+
+  function updateScheduledTask(id: string, patch: Partial<ScheduledTask>) {
+    setAppState((current) => ({
+      ...current,
+      scheduledTasks: current.scheduledTasks.map((task) =>
+        task.id === id ? { ...task, ...patch } : task,
+      ),
+    }));
+  }
+
+  function deleteScheduledTask(id: string) {
+    setAppState((current) => ({
+      ...current,
+      scheduledTasks: current.scheduledTasks.filter((task) => task.id !== id),
+    }));
+  }
+
+  async function runScheduledTask(taskId: string) {
+    const task = appState.scheduledTasks.find((item) => item.id === taskId);
+    if (!task || sendingRef.current || runningTurnRef.current || runtime.state !== "ready") return;
+
+    const sessionId = Date.now();
+    const userMessageId = `scheduled-${sessionId}`;
+    const lastRunAt = new Date().toISOString();
+    const nextRunAt = nextScheduledRun(task);
+    const scheduleDetail =
+      task.schedule === "daily" ? "定时任务 · 每天" : `定时任务 · 每 ${task.intervalMinutes} 分钟`;
+    sendingRef.current = true;
+    setError(null);
+    setAppState((current) => ({
+      ...current,
+      activeSessionId: sessionId,
+      sessions: [
+        buildSession({
+          id: sessionId,
+          title: task.title.slice(0, 24),
+          detail: scheduleDetail,
+          time: "刚刚",
+          conversation: {
+            messages: [
+              {
+                id: userMessageId,
+                role: "user",
+                content: task.prompt,
+              },
+            ],
+            activities: [],
+            approvals: [],
+            fileChanges: [],
+            activeTurn: null,
+            error: null,
+          },
+        }),
+        ...current.sessions,
+      ],
+      scheduledTasks: current.scheduledTasks.map((item) =>
+        item.id === taskId
+          ? { ...item, lastRunAt, nextRunAt, lastStatus: "running", lastError: undefined }
+          : item,
+      ),
+    }));
+
+    try {
+      const startResult = await platform.startThread({ model: selectedModel });
+      const threadId = startResult?.thread.id;
+      if (!threadId) throw new Error("Codex 未返回 thread id");
+      setAppState((current) => ({
+        ...current,
+        sessions: current.sessions.map((session) =>
+          session.id === sessionId ? { ...session, threadId } : session,
+        ),
+      }));
+      threadSessionMapRef.current.set(threadId, sessionId);
+      const turnResult = await platform.sendTurn({
+        threadId,
+        model: selectedModel,
+        input: [{ type: "text", text: task.prompt }],
+      });
+      const turnId = turnResult?.turn.id;
+      if (!turnId) throw new Error("Codex 未返回 turn id");
+      runningTurnRef.current = { sessionId, threadId, turnId };
+      setAppState((current) => ({
+        ...current,
+        sessions: current.sessions.map((session) =>
+          session.id === sessionId
+            ? {
+                ...session,
+                conversation: {
+                  ...session.conversation,
+                  activeTurn: { threadId, turnId },
+                },
+              }
+            : session,
+        ),
+        scheduledTasks: current.scheduledTasks.map((item) =>
+          item.id === taskId ? { ...item, lastStatus: "completed" } : item,
+        ),
+      }));
+    } catch (caught) {
+      sendingRef.current = false;
+      runningTurnRef.current = null;
+      const message = caught instanceof Error ? caught.message : String(caught);
+      setAppState((current) => ({
+        ...current,
+        sessions: current.sessions.map((session) =>
+          session.id === sessionId
+            ? {
+                ...session,
+                conversation: {
+                  ...session.conversation,
+                  activeTurn: null,
+                  error: message,
+                },
+              }
+            : session,
+        ),
+        scheduledTasks: current.scheduledTasks.map((item) =>
+          item.id === taskId ? { ...item, lastStatus: "failed", lastError: message } : item,
+        ),
+      }));
+    }
   }
 
   async function sendMessage(event: FormEvent) {
@@ -663,8 +840,13 @@ export function App() {
     return (
       <SettingsView
         initialSection={settingsSection}
+        scheduledTasks={appState.scheduledTasks}
         onClose={() => setViewMode("workspace")}
         onDefaultModelChange={handleDefaultModelChange}
+        onCreateScheduledTask={createScheduledTask}
+        onUpdateScheduledTask={updateScheduledTask}
+        onDeleteScheduledTask={deleteScheduledTask}
+        onRunScheduledTaskNow={(id) => void runScheduledTask(id)}
       />
     );
   }
@@ -788,6 +970,7 @@ export function App() {
             tabs={tabs}
             activeTabId={activeTabId}
             fileChanges={fileChanges}
+            scheduledTasks={appState.scheduledTasks}
             expandedFiles={expandedFiles}
             expandedDirs={expandedDirs}
             onSelectTab={setActiveTabId}
@@ -797,6 +980,10 @@ export function App() {
               setExpandedFiles((current) => ({ ...current, [id]: !current[id] }))
             }
             onToggleDirectory={handleToggleExpand}
+            onCreateScheduledTask={createScheduledTask}
+            onUpdateScheduledTask={updateScheduledTask}
+            onDeleteScheduledTask={deleteScheduledTask}
+            onRunScheduledTaskNow={(id) => void runScheduledTask(id)}
           />
         </>
       )}
@@ -805,7 +992,14 @@ export function App() {
 
   function addTab(kind: RightSidebarTabKind) {
     const id = `${kind}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-    const title = kind === "files" ? "文件变更" : kind === "terminal" ? "终端" : "文件树";
+    const title =
+      kind === "files"
+        ? "文件变更"
+        : kind === "terminal"
+          ? "终端"
+          : kind === "scheduled"
+            ? "定时任务"
+            : "文件树";
     setTabs((current) => [...current, { id, kind, title, cwd: workspacePath || undefined }]);
     setActiveTabId(id);
   }

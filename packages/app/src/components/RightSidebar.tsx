@@ -1,8 +1,9 @@
-import { FolderTree, Plus, TerminalSquare, X } from "lucide-react";
+import { CalendarClock, FolderTree, Plus, TerminalSquare, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import type { FileChange, RightSidebarTab, RightSidebarTabKind } from "../domain/types";
+import type { FileChange, RightSidebarTab, RightSidebarTabKind, ScheduledTask } from "../domain/types";
 import { FileChangesPanel } from "./FileChangesPanel";
 import { FileTreeTab } from "./FileTreeTab";
+import { ScheduledTasksTab, type ScheduledTaskInput } from "./ScheduledTasksTab";
 import { TerminalTab } from "./TerminalTab";
 import { usePlatform } from "../platform/PlatformContext";
 
@@ -10,6 +11,7 @@ type RightSidebarProps = {
   tabs: RightSidebarTab[];
   activeTabId: string;
   fileChanges: FileChange[];
+  scheduledTasks: ScheduledTask[];
   expandedFiles: Record<string, boolean>;
   expandedDirs: string[];
   onSelectTab: (id: string) => void;
@@ -17,12 +19,17 @@ type RightSidebarProps = {
   onCloseTab: (id: string) => void;
   onToggleFile: (id: string) => void;
   onToggleDirectory: (path: string, open: boolean) => void;
+  onCreateScheduledTask: (task: ScheduledTaskInput) => void;
+  onUpdateScheduledTask: (id: string, patch: Partial<ScheduledTask>) => void;
+  onDeleteScheduledTask: (id: string) => void;
+  onRunScheduledTaskNow: (id: string) => void;
 };
 
 export function RightSidebar({
   tabs,
   activeTabId,
   fileChanges,
+  scheduledTasks,
   expandedFiles,
   expandedDirs,
   onSelectTab,
@@ -30,6 +37,10 @@ export function RightSidebar({
   onCloseTab,
   onToggleFile,
   onToggleDirectory,
+  onCreateScheduledTask,
+  onUpdateScheduledTask,
+  onDeleteScheduledTask,
+  onRunScheduledTaskNow,
 }: RightSidebarProps) {
   const platform = usePlatform();
   const [addMenuOpen, setAddMenuOpen] = useState(false);
@@ -74,48 +85,56 @@ export function RightSidebar({
             </button>
           ))}
         </div>
-        {(platform.capabilities.fileSystem || platform.capabilities.terminal) && (
-          <div className="tab-add-wrap" ref={addMenuRef}>
-            <button
-              className="tab-add"
-              type="button"
-              aria-label="新建侧边栏标签页"
-              title="新建侧边栏标签页"
-              aria-expanded={addMenuOpen}
-              onClick={() => setAddMenuOpen((open) => !open)}
-            >
-              <Plus size={13} />
-            </button>
-            {addMenuOpen && (
-              <div className="tab-add-menu" role="menu">
-                {platform.capabilities.fileSystem && (
-                  <button
-                    role="menuitem"
-                    type="button"
-                    onClick={() => {
-                      onAddTab("tree");
-                      setAddMenuOpen(false);
-                    }}
-                  >
-                    <FolderTree size={13} /> <span>文件树</span>
-                  </button>
-                )}
-                {platform.capabilities.terminal && (
-                  <button
-                    role="menuitem"
-                    type="button"
-                    onClick={() => {
-                      onAddTab("terminal");
-                      setAddMenuOpen(false);
-                    }}
-                  >
-                    <TerminalSquare size={13} /> <span>终端</span>
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-        )}
+        <div className="tab-add-wrap" ref={addMenuRef}>
+          <button
+            className="tab-add"
+            type="button"
+            aria-label="新建侧边栏标签页"
+            title="新建侧边栏标签页"
+            aria-expanded={addMenuOpen}
+            onClick={() => setAddMenuOpen((open) => !open)}
+          >
+            <Plus size={13} />
+          </button>
+          {addMenuOpen && (
+            <div className="tab-add-menu" role="menu">
+              {platform.capabilities.fileSystem && (
+                <button
+                  role="menuitem"
+                  type="button"
+                  onClick={() => {
+                    onAddTab("tree");
+                    setAddMenuOpen(false);
+                  }}
+                >
+                  <FolderTree size={13} /> <span>文件树</span>
+                </button>
+              )}
+              <button
+                role="menuitem"
+                type="button"
+                onClick={() => {
+                  onAddTab("scheduled");
+                  setAddMenuOpen(false);
+                }}
+              >
+                <CalendarClock size={13} /> <span>定时任务</span>
+              </button>
+              {platform.capabilities.terminal && (
+                <button
+                  role="menuitem"
+                  type="button"
+                  onClick={() => {
+                    onAddTab("terminal");
+                    setAddMenuOpen(false);
+                  }}
+                >
+                  <TerminalSquare size={13} /> <span>终端</span>
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="tab-content">
@@ -137,6 +156,14 @@ export function RightSidebar({
           </>
         ) : activeTab.kind === "terminal" ? (
           <TerminalTab tab={activeTab} />
+        ) : activeTab.kind === "scheduled" ? (
+          <ScheduledTasksTab
+            tasks={scheduledTasks}
+            onCreate={onCreateScheduledTask}
+            onUpdate={onUpdateScheduledTask}
+            onDelete={onDeleteScheduledTask}
+            onRunNow={onRunScheduledTaskNow}
+          />
         ) : (
           <FileTreeTab
             tab={activeTab}
